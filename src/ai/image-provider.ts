@@ -180,7 +180,7 @@ export class OpenAIImageProvider implements IImageProvider {
     logger.info(`[${this.name}] Image generated in ${elapsed}ms`);
 
     return {
-      base64: `image/png;base64,${base64}`,
+      base64: `data:image/png;base64,${base64}`,
       revisedPrompt: imageData.revised_prompt,
       width: w,
       height: h,
@@ -320,7 +320,7 @@ export class AzureOpenAIImageProvider implements IImageProvider {
     logger.info(`[${this.name}] Image generated in ${elapsed}ms`);
 
     return {
-      base64: `image/png;base64,${imageData.b64_json}`,
+      base64: `data:image/png;base64,${imageData.b64_json}`,
       revisedPrompt: imageData.revised_prompt,
       width: w,
       height: h,
