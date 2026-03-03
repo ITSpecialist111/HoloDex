@@ -306,6 +306,7 @@ export async function renderTitleSlide(
     valign: 'bottom',
     margin: 0,
     lineSpacingMultiple: 1.1,
+    autoFit: true,
   });
 
   // Wide accent line under title
@@ -414,6 +415,7 @@ export async function renderSectionSlide(
     align: 'left',
     valign: 'middle',
     margin: 0,
+    autoFit: true,
   });
 
   // Accent line under title
@@ -1198,23 +1200,24 @@ export async function renderStatCalloutSlide(
     });
 
     // Subtle colored circle behind number
-    const circleSize = 1.6;
+    const circleSize = 1.4;
     pptxSlide.addShape(ctx.pres.shapes.OVAL, {
-      x: x + layout.cardW / 2 - circleSize / 2, y: startY + 0.5,
+      x: x + layout.cardW / 2 - circleSize / 2, y: startY + 0.6,
       w: circleSize, h: circleSize,
       fill: { color: statColor, transparency: 90 },
     });
 
-    // Big number — much larger for impact
+    // Big number — sized to fit within card
     pptxSlide.addText(stat.value, {
       x: x + CARD_PAD, y: startY + 0.4, w: layout.cardW - CARD_PAD * 2, h: 1.8,
-      fontSize: 68,
+      fontSize: 48,
       fontFace: typo.headerFont,
       color: statColor,
       bold: true,
       align: 'center',
       valign: 'middle',
       margin: 0,
+      autoFit: true,
     });
 
     // Small accent line between number and label
@@ -1582,6 +1585,7 @@ export async function renderQuoteSlide(
     valign: 'middle',
     margin: 0,
     lineSpacingMultiple: 1.5,
+    autoFit: true,
   });
 
   // Attribution
@@ -1848,6 +1852,7 @@ export async function renderClosingSlide(
     align: 'center',
     valign: 'middle',
     margin: 0,
+    autoFit: true,
   });
 
   // Accent line under title
