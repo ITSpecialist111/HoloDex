@@ -497,7 +497,8 @@ export async function renderContentSlide(
     x: MARGIN_X, y: BODY_Y, w: contentWidth, h: BODY_H,
     valign: 'top',
     margin: 0,
-    lineSpacingMultiple: 1.3,
+    lineSpacingMultiple: 1.25,
+    autoFit: true,
   });
 
   // Image on the right if provided (AI image takes priority)
@@ -616,7 +617,7 @@ export async function renderTwoColumnSlide(
     }
 
     pptxSlide.addText(bodyToTextArray(content, {
-      fontSize: typo.bodySize,
+      fontSize: typo.bodySize - 1,
       fontFace: typo.bodyFont,
       color: subColor,
     }), {
@@ -624,7 +625,8 @@ export async function renderTwoColumnSlide(
       w: layout.cardW - CARD_PAD * 2, h: BODY_Y + BODY_H - contentY - 0.2,
       valign: 'top',
       margin: 0,
-      lineSpacingMultiple: 1.3,
+      lineSpacingMultiple: 1.2,
+      autoFit: true,
     });
   }
 
@@ -714,7 +716,7 @@ export async function renderThreeColumnSlide(
 
     // Column content
     pptxSlide.addText(bodyToTextArray(col.content, {
-      fontSize: typo.bodySize,
+      fontSize: typo.bodySize - 1,
       fontFace: typo.bodyFont,
       color: subColor,
     }), {
@@ -722,7 +724,8 @@ export async function renderThreeColumnSlide(
       valign: 'top',
       align: 'center',
       margin: 0,
-      lineSpacingMultiple: 1.3,
+      lineSpacingMultiple: 1.15,
+      autoFit: true,
     });
   }
 
@@ -769,16 +772,18 @@ export async function renderBulletListSlide(
   const hasAnyIcon = slide.items.some(item => item.icon);
 
   if (hasAnyIcon) {
-    // Icon-row layout: small icon + text per row
-    const itemHeight = Math.min(0.55, BODY_H / slide.items.length);
-    const iconSize = 0.32;
+    // Icon-row layout: calculate total rows (main + sub-items) for proper spacing
+    const totalRows = slide.items.reduce((sum, item) => sum + 1 + (item.subItems?.length || 0), 0);
+    const mainItemH = Math.min(0.42, BODY_H / totalRows);
+    const subItemH = mainItemH * 0.75;
+    const iconSize = 0.28;
     const iconX = MARGIN_X;
-    const textX = MARGIN_X + iconSize + 0.15;
-    const textW = CONTENT_W - iconSize - 0.15;
+    const textX = MARGIN_X + iconSize + 0.12;
+    const textW = CONTENT_W - iconSize - 0.12;
 
+    let curY = BODY_Y;
     for (let i = 0; i < slide.items.length; i++) {
       const item = slide.items[i];
-      const rowY = BODY_Y + i * itemHeight;
 
       if (item.icon) {
         try {
@@ -788,7 +793,7 @@ export async function renderBulletListSlide(
           });
           pptxSlide.addImage({
             data: iconData,
-            x: iconX, y: rowY + 0.05, w: iconSize, h: iconSize,
+            x: iconX, y: curY + 0.05, w: iconSize, h: iconSize,
           });
         } catch (e) {
           logger.warn('Failed to render bullet icon', e);
@@ -796,27 +801,28 @@ export async function renderBulletListSlide(
       }
 
       pptxSlide.addText(item.text, {
-        x: textX, y: rowY, w: textW, h: itemHeight,
-        fontSize: typo.bodySize + 1,
+        x: textX, y: curY, w: textW, h: mainItemH,
+        fontSize: typo.bodySize,
         fontFace: typo.bodyFont,
         color: textColor,
         bold: true,
         valign: 'middle',
         margin: 0,
       });
+      curY += mainItemH;
 
       if (item.subItems) {
         for (let j = 0; j < item.subItems.length; j++) {
-          const subY = rowY + itemHeight + j * (itemHeight * 0.8);
           pptxSlide.addText(item.subItems[j], {
-            x: textX + 0.3, y: subY, w: textW - 0.3, h: itemHeight * 0.8,
-            fontSize: typo.bodySize,
+            x: textX + 0.25, y: curY, w: textW - 0.25, h: subItemH,
+            fontSize: typo.bodySize - 1,
             fontFace: typo.bodyFont,
             color: subColor,
             valign: 'middle',
             margin: 0,
             bullet: { type: 'bullet', characterCode: '25CB' },
           });
+          curY += subItemH;
         }
       }
     }
@@ -1544,14 +1550,15 @@ export async function renderImageTextSlide(
 
   // Body text
   pptxSlide.addText(bodyToTextArray(slide.body, {
-    fontSize: typo.bodySize,
+    fontSize: typo.bodySize - 1,
     fontFace: typo.bodyFont,
     color: subColor,
   }), {
     x: textX, y: 1.6, w: 4.0, h: 3.5,
     valign: 'top',
     margin: 0,
-    lineSpacingMultiple: 1.4,
+    lineSpacingMultiple: 1.3,
+    autoFit: true,
   });
 
   addFooter(pptxSlide, ctx.pres, ctx, isDark);
@@ -1634,12 +1641,13 @@ export async function renderIconGridSlide(
     if (item.description) {
       pptxSlide.addText(item.description, {
         x: x + 0.1, y: y + 1.15, w: cellWidth - 0.2, h: cellHeight - 1.3,
-        fontSize: typo.captionSize + 1,
+        fontSize: typo.captionSize,
         fontFace: typo.bodyFont,
         color: subColor,
         align: 'center',
         margin: 0,
-        lineSpacingMultiple: 1.2,
+        lineSpacingMultiple: 1.1,
+        autoFit: true,
       });
     }
   }
@@ -1699,14 +1707,14 @@ export async function renderQuoteSlide(
   // Quote text (uses quoteFont)
   pptxSlide.addText(slide.quote, {
     x: 1.3, y: 1.0, w: 7.2, h: 2.8,
-    fontSize: typo.subtitleSize + 4,
+    fontSize: typo.subtitleSize + 2,
     fontFace: quoteFont,
     color: t.palette.textOnDark,
     italic: true,
     align: 'left',
     valign: 'middle',
     margin: 0,
-    lineSpacingMultiple: 1.5,
+    lineSpacingMultiple: 1.4,
     autoFit: true,
   });
 
@@ -1985,10 +1993,10 @@ export async function renderClosingSlide(
   }
 
   // Main title
-  const mainY = ctx.brand?.logoBase64 ? 2.0 : 1.5;
+  const mainY = ctx.brand?.logoBase64 ? 2.0 : 1.2;
   pptxSlide.addText(slide.title, {
     x: MARGIN_X, y: mainY, w: CONTENT_W, h: 1.2,
-    fontSize: typo.titleSize + 4,
+    fontSize: typo.headingSize + 4,
     fontFace: typo.headerFont,
     color: t.palette.textOnDark,
     bold: true,
@@ -2007,12 +2015,15 @@ export async function renderClosingSlide(
 
   if (slide.subtitle) {
     pptxSlide.addText(slide.subtitle, {
-      x: MARGIN_X, y: mainY + 1.5, w: CONTENT_W, h: 0.6,
-      fontSize: typo.subtitleSize + 2,
+      x: MARGIN_X, y: mainY + 1.5, w: CONTENT_W, h: 1.8,
+      fontSize: typo.bodySize + 1,
       fontFace: typo.bodyFont,
       color: lightenColor(t.palette.textOnDark, 25),
       align: 'center',
+      valign: 'top',
       margin: 0,
+      lineSpacingMultiple: 1.4,
+      autoFit: true,
     });
   }
 
@@ -2283,14 +2294,15 @@ export async function renderFullImageSlide(
 
     if (slide.subtitle) {
       pptxSlide.addText(slide.subtitle, {
-        x: textX, y: textY + 1.3, w: textW, h: 0.6,
-        fontSize: typo.subtitleSize,
+        x: textX, y: textY + 1.3, w: textW, h: 0.8,
+        fontSize: typo.bodySize + 2,
         fontFace: typo.bodyFont,
         color: 'FFFFFF',
         transparency: 20,
         align,
         valign: 'top',
         margin: 0,
+        autoFit: true,
       });
     }
   }
