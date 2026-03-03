@@ -79,10 +79,13 @@ BULLET-LIST: { type: "bullet-list", title: "...", items: [{ text: "..." }, ...] 
 CHART-BAR: { type: "chart-bar", title: "...", series: [{ name: "...", labels: [...], values: [...] }] }
 CHART-LINE: { type: "chart-line", title: "...", series: [{ name: "...", labels: [...], values: [...] }] }
 CHART-PIE: { type: "chart-pie", title: "...", series: [{ name: "...", labels: [...], values: [...] }] }
+CHART-DOUGHNUT: { type: "chart-doughnut", title: "...", series: [{ name: "...", labels: [...], values: [...] }] }
 COMPARISON: { type: "comparison", title: "...", leftTitle: "...", leftItems: [...], rightTitle: "...", rightItems: [...] }
 STAT-CALLOUT: { type: "stat-callout", title: "...", stats: [{ value: "85%", label: "Growth" }, ...] }
 TIMELINE: { type: "timeline", title: "...", steps: [{ title: "...", description: "..." }, ...] }
 IMAGE-TEXT: { type: "image-text", title: "...", body: "...", image: { altText: "..." }, aiImage: { prompt: "..." } }
+FULL-IMAGE: { type: "full-image", title: "...", subtitle: "...", aiImage: { prompt: "Hero image description..." } }
+ICON-GRID: { type: "icon-grid", title: "...", icons: [{ icon: "FaRocket", label: "...", description: "..." }, ...] }
 QUOTE: { type: "quote", quote: "...", attribution: "..." }
 TABLE: { type: "table", title: "...", headers: [...], rows: [[...], ...] }
 TEAM: { type: "team", title: "...", members: [{ name: "...", role: "..." }, ...] }
@@ -95,7 +98,12 @@ To add AI-generated images to slides, include an aiImage field:
 { "aiImage": { "prompt": "Description of the image to generate" } }
 
 This works on: full-image, image-text, content, and other slide types.
-Requires OPENAI_API_KEY to be configured on the HoloDex server.
+
+AI image generation supports two providers:
+- **Azure OpenAI** (recommended for production) — Uses DALL-E 3 with Entra ID managed identity auth. No API key needed when deployed to Azure.
+- **OpenAI** — Uses `OPENAI_API_KEY` environment variable.
+
+Images are generated sequentially with automatic rate-limit retry (429 handling). Without a configured provider, slides receive a placeholder gradient.
 
 ## Design Rules
 - Pick a BOLD color palette that matches the topic — don't default to blue
@@ -155,7 +163,7 @@ In the Agent365 `ToolingManifest.json`, HoloDex is registered as:
 For production deployments, update the `url` to your Azure Container App URL:
 ```json
 {
-  "url": "https://holodex.azurecontainerapps.io/mcp"
+  "url": "https://pptx-engine.wonderfulground-b6cde5f0.eastus2.azurecontainerapps.io/mcp"
 }
 ```
 
@@ -206,7 +214,7 @@ User: "Create a deck about AI trends and save to my OneDrive"
 ## Notes
 
 - **Download URLs expire after 1 hour** — upload to OneDrive promptly
-- **AI images require `OPENAI_API_KEY`** on the HoloDex server — without it, slides get a placeholder
+- **AI images** — Azure OpenAI (DALL-E 3 via Entra ID) is the default when deployed to Azure. Alternatively, set `OPENAI_API_KEY` for direct OpenAI access. Without either, slides get a placeholder gradient
 - **Brand registration is persistent** — register once, use across all future presentations
 - **Maximum 50 slides** per presentation
 - **returnUrl: true** is required for chat-based agents — raw base64 is too large for chat responses

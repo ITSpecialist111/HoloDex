@@ -38,9 +38,11 @@ No Power Automate required — the entire flow is handled by MCP tool chaining t
 - **Download URLs** — `returnUrl: true` stores the generated PPTX in-memory and returns a temporary download link (1-hour TTL) — perfect for chat-based agents
 - **REST API** — Full CRUD for presentations, brands, palettes, and AI image generation
 - **Charts** — Bar, line, pie, doughnut with automatic color theming
-- **Icons** — 4 icon libraries (Font Awesome, Material Design, Heroicons, Bootstrap) rendered as PNG
+- **Icons** — 4 icon libraries (Font Awesome, Material Design, Heroicons, Bootstrap) rendered as PNG with auto-caching
+- **Visual Motifs** — Decorative accent shapes (corner accents, side bars, gradient strips) for polished designs
 - **Speaker Notes** — On every slide type
-- **Azure Ready** — Dockerfile, Bicep templates, managed identity, blob storage integration
+- **Rate-Limit Resilience** — Azure OpenAI 429 auto-retry with `retry-after` parsing for reliable batch image generation
+- **Azure Native** — Dockerfile, Bicep IaC, ACR, Container Apps, managed identity, Entra ID auth, App Insights
 
 ## Architecture
 
@@ -120,11 +122,13 @@ npx tsx src/examples/generate-sample.ts
 
 ```bash
 # Build and run
-docker compose up --build
-
-# Or manually
 docker build -t holodex .
-docker run -p 3000:3000 holodex
+docker run -p 3000:3000 \
+  -e MODE=all \
+  -e AZURE_OPENAI_ENDPOINT=https://your-openai.openai.azure.com/ \
+  -e AZURE_OPENAI_DEPLOYMENT=dall-e-3 \
+  -e AI_IMAGE_PROVIDER=azure-openai \
+  holodex
 ```
 
 ### Enable AI Image Generation
@@ -218,9 +222,16 @@ The download URL can then be passed to the OneDrive MCP for upload, or presented
 For production Azure Container App deployments:
 ```json
 {
-  "url": "https://your-app.azurecontainerapps.io/mcp"
+  "url": "https://your-app.region.azurecontainerapps.io/mcp"
 }
 ```
+
+The MCP endpoint supports the full [StreamableHTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) protocol:
+- `POST /mcp` — JSON-RPC messages (initialize, tools/call, etc.)
+- `GET /mcp` — SSE stream for server-initiated notifications
+- `DELETE /mcp` — Session cleanup
+
+Sessions are managed automatically with 30-minute TTL and periodic cleanup.
 
 ### Agent365 Integration
 
@@ -497,49 +508,89 @@ If no provider is configured, slides with `aiImage` will render a placeholder in
 
 ## Azure Deployment
 
+HoloDex is designed for Azure Container Apps with full Bicep infrastructure-as-code.
+
 ### Prerequisites
 
-- Azure CLI (`az`)
-- Azure Developer CLI (`azd`) — optional
-- Docker
+- Azure CLI (`az`) — [install](https://learn.microsoft.com/cli/azure/install-azure-cli)
+- Azure Developer CLI (`azd`) — [install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- Docker Desktop
 
-### Deploy with Azure Developer CLI
+### Deploy with Azure Developer CLI (Recommended)
 
 ```bash
+# Login
 azd auth login
-azd init
-azd up
+
+# Create environment and configure
+azd env new holodex-prod
+azd env set AZURE_LOCATION eastus
+azd env set azureOpenAiEndpoint "https://your-openai.openai.azure.com/"
+azd env set azureOpenAiDeployment "dall-e-3"
+azd env set appName "holodex"
+
+# Provision infrastructure + build + deploy (one command)
+azd up --no-prompt
 ```
 
-### Deploy with Azure CLI
+This creates all resources, builds the Docker image, pushes to ACR, and deploys to Container Apps.
+
+### Post-Deployment: AI Image RBAC
+
+If using Azure OpenAI for AI image generation, assign the managed identity access:
+
+```bash
+# Get the managed identity principal ID
+PRINCIPAL_ID=$(az identity show --name holodex-identity \
+  --resource-group rg-holodex --query principalId -o tsv)
+
+# Assign Cognitive Services OpenAI User role
+az role assignment create \
+  --assignee $PRINCIPAL_ID \
+  --role "Cognitive Services OpenAI User" \
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<openai-account>
+```
+
+### Deploy with Azure CLI (Manual)
 
 ```bash
 # Create resource group
-az group create --name holodex-rg --location eastus2
+az group create --name rg-holodex --location eastus
 
-# Deploy infrastructure
+# Deploy Bicep infrastructure
 az deployment group create \
-  --resource-group holodex-rg \
+  --resource-group rg-holodex \
   --template-file infra/main.bicep \
-  --parameters infra/main.parameters.json
+  --parameters appName=holodex \
+               azureOpenAiEndpoint="https://your-openai.openai.azure.com/"
 
-# Build and push image
-az acr build --registry <your-acr> --image holodex:latest .
+# Build and push image to ACR
+az acr build --registry holodexregistry --image holodex:latest .
 
-# Update container app
+# Update container app with new image
 az containerapp update \
   --name holodex \
-  --resource-group holodex-rg \
-  --image <your-acr>.azurecr.io/holodex:latest
+  --resource-group rg-holodex \
+  --image holodexregistry.azurecr.io/holodex:latest
 ```
 
-### Infrastructure Included
+### Infrastructure Provisioned (Bicep)
 
-- **Azure Container App** — Auto-scaling (0-3 replicas), HTTP scaling rule
-- **Azure Blob Storage** — PPTX file storage with managed identity access
-- **Application Insights** — Monitoring and telemetry
-- **Log Analytics** — Centralized logging
-- **Managed Identity** — Passwordless auth to storage and registry
+The `infra/main.bicep` template creates:
+
+| Resource | Purpose |
+|----------|--------|
+| **Azure Container App** | Auto-scaling (0–3 replicas), HTTP scaling rule, health probes |
+| **Azure Container Registry** | Private Docker image registry (Basic SKU) |
+| **Azure Blob Storage** | PPTX file storage with managed identity access |
+| **Application Insights** | APM, telemetry, distributed tracing |
+| **Log Analytics Workspace** | Centralized logging (30-day retention) |
+| **User-Assigned Managed Identity** | Passwordless auth to ACR, Storage, and OpenAI |
+
+RBAC role assignments are auto-created:
+- **AcrPull** on the container registry
+- **Storage Blob Data Contributor** on the storage account
+- **Cognitive Services OpenAI User** — must be assigned manually (see above)
 
 ## License
 
