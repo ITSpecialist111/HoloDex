@@ -9,9 +9,6 @@ param location string = resourceGroup().location
 @description('The container image to deploy')
 param containerImage string = ''
 
-@description('The container registry server')
-param containerRegistryServer string = ''
-
 @description('CPU cores for the container (e.g., 0.5, 1, 2)')
 param cpuCores string = '1'
 
@@ -35,6 +32,18 @@ param storageAccountName string = replace('${appName}store', '-', '')
 
 @description('Application Insights name')
 param appInsightsName string = '${appName}-insights'
+
+@description('Container Registry name')
+param containerRegistryName string = replace('${appName}registry', '-', '')
+
+@description('Azure OpenAI endpoint URL (e.g., https://myoai.openai.azure.com/)')
+param azureOpenAiEndpoint string = ''
+
+@description('Azure OpenAI DALL-E deployment name')
+param azureOpenAiDeployment string = 'dall-e-3'
+
+@description('Azure OpenAI API version')
+param azureOpenAiApiVersion string = '2024-02-01'
 
 // ===================================
 // Log Analytics Workspace
@@ -111,6 +120,20 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 }
 
 // ===================================
+// Azure Container Registry
+// ===================================
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: containerRegistryName
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  properties: {
+    adminUserEnabled: false
+  }
+}
+
+// ===================================
 // User-Assigned Managed Identity
 // ===================================
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -132,12 +155,35 @@ resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
+// Assign AcrPull to the managed identity on the container registry
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, managedIdentity.id, '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull
+    )
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// NOTE: Cognitive Services OpenAI User role on the existing Azure OpenAI resource
+// must be assigned post-deployment via CLI:
+//   az role assignment create --assignee <managedIdentityClientId> \
+//     --role "Cognitive Services OpenAI User" \
+//     --scope <azureOpenAiResourceId>
+
 // ===================================
 // Container App
 // ===================================
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: appName
   location: location
+  tags: {
+    'azd-service-name': 'api'
+  }
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -159,12 +205,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           maxAge: 3600
         }
       }
-      registries: containerRegistryServer != '' ? [
+      registries: [
         {
-          server: containerRegistryServer
+          server: containerRegistry.properties.loginServer
           identity: managedIdentity.id
         }
-      ] : []
+      ]
     }
     template: {
       containers: [
@@ -183,6 +229,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'AZURE_STORAGE_ACCOUNT', value: storageAccount.name }
             { name: 'AZURE_STORAGE_CONTAINER', value: 'pptx-output' }
             { name: 'AZURE_CLIENT_ID', value: managedIdentity.properties.clientId }
+            { name: 'AI_IMAGE_PROVIDER', value: azureOpenAiEndpoint != '' ? 'azure-openai' : '' }
+            { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
+            { name: 'AZURE_OPENAI_DEPLOYMENT', value: azureOpenAiDeployment }
+            { name: 'AZURE_OPENAI_API_VERSION', value: azureOpenAiApiVersion }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString
@@ -236,3 +286,4 @@ output containerAppName string = containerApp.name
 output storageAccountName string = storageAccount.name
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.loginServer
