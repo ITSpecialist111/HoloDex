@@ -2144,7 +2144,9 @@ export async function renderBlankSlide(
   // Render custom elements if provided
   if (slide.elements && slide.elements.length > 0) {
     for (const el of slide.elements) {
-      const { type, x, y, w, h, props } = el;
+      const { type, x, y, w, h } = el;
+      // Support props sub-object or flat element fields
+      const props: Record<string, unknown> = el.props || el as any;
       try {
         switch (type) {
           case 'text':

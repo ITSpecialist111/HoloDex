@@ -48,6 +48,11 @@ export const DesignThemeSchema = z.object({
   slideLayout: z.enum(['LAYOUT_16x9', 'LAYOUT_16x10', 'LAYOUT_4x3', 'LAYOUT_WIDE']).default('LAYOUT_16x9'),
 });
 
+/** Input variant where palette is optional (resolved by paletteName or defaults) */
+export const DesignThemeInputSchema = DesignThemeSchema.extend({
+  palette: ColorPaletteSchema.optional(),
+});
+
 // ============================================================
 // Brand Schemas
 // ============================================================
@@ -378,7 +383,7 @@ export const BlankSlideSchema = BaseSlideSchema.extend({
     y: z.number(),
     w: z.number(),
     h: z.number(),
-    props: z.record(z.unknown()),
+    props: z.record(z.unknown()).optional(),
   })).optional(),
 });
 
@@ -431,7 +436,7 @@ export const PresentationRequestSchema = z.object({
   description: z.string().optional(),
   author: z.string().optional(),
   slides: z.array(SlideSchema).min(1).max(50),
-  theme: DesignThemeSchema.optional(),
+  theme: DesignThemeInputSchema.optional(),
   paletteName: z.string().optional().describe('Preset palette name (use list_palettes to see options). Overrides theme.palette if both provided.'),
   brand: BrandConfigSchema.optional(),
   outputFormat: z.enum(['buffer', 'base64', 'file', 'blob-url']).default('buffer'),
