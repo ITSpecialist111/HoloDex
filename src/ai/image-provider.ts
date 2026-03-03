@@ -307,6 +307,15 @@ export class AzureOpenAIImageProvider implements IImageProvider {
 
     if (!response.ok) {
       const errorBody = await response.text();
+      // If rate limited, throw a typed error so generateBatch can retry
+      if (response.status === 429) {
+        const retryAfterMatch = errorBody.match(/retry after (\d+) seconds/i);
+        const retryAfter = retryAfterMatch ? parseInt(retryAfterMatch[1], 10) : 40;
+        const err = new Error(`Azure OpenAI API error 429: ${errorBody}`) as any;
+        err.retryAfterSeconds = retryAfter;
+        err.isRateLimited = true;
+        throw err;
+      }
       throw new Error(`Azure OpenAI API error ${response.status}: ${errorBody}`);
     }
 
@@ -330,18 +339,28 @@ export class AzureOpenAIImageProvider implements IImageProvider {
   }
 
   async generateBatch(requests: ImageGenerationRequest[]): Promise<GeneratedImage[]> {
-    const maxConcurrent = this.config.maxConcurrent || 2;
+    // Generate images sequentially to avoid rate limit issues on S0 tier
     const results: GeneratedImage[] = [];
 
-    for (let i = 0; i < requests.length; i += maxConcurrent) {
-      const batch = requests.slice(i, i + maxConcurrent);
-      const batchResults = await Promise.all(
-        batch.map(req => this.generate(req).catch(err => {
-          logger.error(`[${this.name}] Batch image generation failed: ${err}`);
-          return null;
-        }))
-      );
-      results.push(...batchResults.filter((r): r is GeneratedImage => r !== null));
+    for (const req of requests) {
+      try {
+        const result = await this.generate(req);
+        results.push(result);
+      } catch (err: any) {
+        if (err.isRateLimited) {
+          const waitSec = (err.retryAfterSeconds || 40) + 2; // add 2s buffer
+          logger.info(`[${this.name}] Rate limited — waiting ${waitSec}s before retrying...`);
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+          try {
+            const retryResult = await this.generate(req);
+            results.push(retryResult);
+          } catch (retryErr) {
+            logger.error(`[${this.name}] Retry failed: ${retryErr}`);
+          }
+        } else {
+          logger.error(`[${this.name}] Image generation failed: ${err}`);
+        }
+      }
     }
 
     return results;
