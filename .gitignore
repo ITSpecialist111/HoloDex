@@ -1,0 +1,15 @@
+node_modules/
+dist/
+output/
+brands/
+.env
+.env.local
+.env.production
+*.pptx
+coverage/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+nul
+tmpclaude-*

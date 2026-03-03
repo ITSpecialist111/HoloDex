@@ -1,0 +1,544 @@
+# HoloDex
+
+> AI-powered PPTX generation engine with MCP and REST API interfaces. Designed for agent-to-agent orchestration via Copilot Studio, Agent365, and direct integration.
+
+## Overview
+
+HoloDex is a programmatic presentation engine that generates professional PowerPoint files from structured JSON requests. It supports 22 slide types, 10 color palettes, brand management, AI image generation, charts, icons, and speaker notes — all without touching a GUI.
+
+### Why This Exists
+
+Traditional AI presentation tools (MS Copilot, Google Slides AI) are limited to basic layouts and cannot be called programmatically. HoloDex gives AI agents full control over presentation generation through **MCP (Model Context Protocol)** and **REST API** interfaces, with first-class support for the Microsoft 365 Copilot Studio ecosystem.
+
+### The Flow: From Prompt to OneDrive
+
+```
+User (Copilot Studio) → Agent365 → HoloDex (MCP) → PPTX generated
+                                  → OneDrive MCP  → File saved to M365
+                                  → User gets link
+```
+
+1. User asks Copilot Studio to "create a presentation about X"
+2. The orchestrating agent calls HoloDex via MCP to generate the deck
+3. HoloDex returns a **download URL** (via `returnUrl: true`)
+4. The agent calls the **Microsoft OneDrive/SharePoint MCP** to upload the file to the user's OneDrive
+5. The user receives a clickable link to their presentation in Microsoft 365
+
+No Power Automate required — the entire flow is handled by MCP tool chaining through Agent365.
+
+## Features
+
+- **22 Slide Types** — Title, section, content, two/three-column, bullet list, 4 chart types, comparison, stat callout, timeline, image+text, full-image (hero), icon grid, quote, table, team, agenda, closing, blank
+- **AI Image Generation** — DALL-E 3 or GPT-image-1 directly in slides. Auto-prompts from slide context, theme-aware color matching, batch generation with caching
+- **10 Color Palettes** — Midnight Executive, Forest Moss, Coral Energy, Warm Terracotta, Ocean Gradient, Charcoal Minimal, Teal Trust, Berry Cream, Sage Calm, Cherry Bold
+- **Brand Management** — Register company brands with logos, colors, fonts; generate branded presentations with master slides
+- **MCP Server** — 8 tools for agent-to-agent integration (stdio and StreamableHTTP transports)
+- **Download URLs** — `returnUrl: true` stores the generated PPTX in-memory and returns a temporary download link (1-hour TTL) — perfect for chat-based agents
+- **REST API** — Full CRUD for presentations, brands, palettes, and AI image generation
+- **Charts** — Bar, line, pie, doughnut with automatic color theming
+- **Icons** — 4 icon libraries (Font Awesome, Material Design, Heroicons, Bootstrap) rendered as PNG
+- **Speaker Notes** — On every slide type
+- **Azure Ready** — Dockerfile, Bicep templates, managed identity, blob storage integration
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Copilot Studio                            │
+│  "Create a deck about Q3 results and save it to my OneDrive"    │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────────┐
+│                        Agent365                                  │
+│         (MCP Bridge — Claude ↔ Microsoft 365 MCPs)               │
+│                                                                  │
+│  ┌──────────────┐  ┌───────────────┐  ┌────────────────────┐    │
+│  │ mcp_HoloDex  │  │ mcp_OneDrive  │  │ mcp_PowerPoint     │    │
+│  │ (this repo)  │  │ SharePoint    │  │ (edit existing)    │    │
+│  │              │  │ Tools         │  │                    │    │
+│  │ • create_    │  │ • upload file │  │ • add/edit slides  │    │
+│  │   presentation│ │ • share file  │  │ • read content     │    │
+│  │ • returnUrl  │  │ • find files  │  │                    │    │
+│  │ • AI images  │  │               │  │                    │    │
+│  └──────┬───────┘  └───────┬───────┘  └────────────────────┘    │
+│         │                  │                                     │
+│         │ StreamableHTTP   │ Entra ID Auth                       │
+│         │ POST /mcp        │                                     │
+└─────────┼──────────────────┼─────────────────────────────────────┘
+          │                  │
+┌─────────▼──────────────────▼─────────────────────────────────────┐
+│                    HoloDex Engine                                 │
+│                                                                  │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐ │
+│  │ MCP Server     │  │ REST API       │  │ File Store         │ │
+│  │ (8 tools)      │  │ (Express)      │  │ (in-memory, 1h)   │ │
+│  └───────┬────────┘  └───────┬────────┘  │ GET /downloads/:id │ │
+│          └───────────────────┤            └────────────────────┘ │
+│                       ┌──────▼──────┐                            │
+│                       │ PPTX Engine │                            │
+│                       └──────┬──────┘                            │
+│          ┌───────────────────┼──────────────────┐                │
+│          ▼                   ▼                  ▼                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐      │
+│  │ Theme        │  │ Slide        │  │ AI Image         │      │
+│  │ Resolver     │  │ Renderers    │  │ Provider         │      │
+│  │ (10 palettes)│  │ (22 types)   │  │ (DALL-E/GPT-img) │      │
+│  └──────────────┘  └──────────────┘  └──────────────────┘      │
+│              ┌──────────────┐  ┌──────────────┐                  │
+│              │ Brand Manager│  │ PptxGenJS    │                  │
+│              └──────────────┘  └──────────────┘                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Start (API + MCP)
+npm start
+
+# Or development mode with hot reload
+npm run dev
+```
+
+### Generate a Sample
+
+```bash
+npx tsx src/examples/generate-sample.ts
+```
+
+### Docker
+
+```bash
+# Build and run
+docker compose up --build
+
+# Or manually
+docker build -t holodex .
+docker run -p 3000:3000 holodex
+```
+
+### Enable AI Image Generation
+
+Create a `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Then configure one of the three provider options:
+
+| Option | Variables to set | Notes |
+|--------|-----------------|-------|
+| **OpenAI** | `OPENAI_API_KEY=sk-...` | Uses DALL-E 3 or GPT-image-1 |
+| **Azure OpenAI (API key)** | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` | Standard key auth |
+| **Azure OpenAI (Entra ID)** | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` | No API key — uses `DefaultAzureCredential` (`az login`, Managed Identity). Requires **Cognitive Services OpenAI User** role. |
+
+The provider auto-detects: if Azure OpenAI is configured it takes precedence, otherwise OpenAI is used. Override with `AI_IMAGE_PROVIDER=openai` or `AI_IMAGE_PROVIDER=azure-openai`.
+
+AI images are auto-triggered when any slide has an `aiImage` field — no need to set `aiImageSettings.enabled`.
+
+## MCP Integration
+
+HoloDex exposes 8 MCP tools for AI agent integration:
+
+| Tool | Description |
+|------|-------------|
+| `create_presentation` | Generate PPTX from structured slide definitions |
+| `create_quick_presentation` | Generate from a simple text outline |
+| `generate_image` | Generate a standalone AI image (DALL-E 3 / GPT-image-1) |
+| `list_slide_types` | Get available slide types with schemas |
+| `list_palettes` | Get available color palettes |
+| `register_brand` | Register a company brand configuration |
+| `list_brands` | List registered brands |
+| `get_design_tips` | Get design guidance by topic |
+
+### returnUrl Mode
+
+When called from a chat-based agent (Copilot Studio, Teams), use `returnUrl: true` to get a download link instead of raw base64:
+
+```json
+{
+  "title": "Q3 Results",
+  "returnUrl": true,
+  "slides": [...]
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "fileName": "q3-results.pptx",
+  "slideCount": 8,
+  "downloadUrl": "http://localhost:3000/api/v1/downloads/abc-123",
+  "expiresIn": "1 hour"
+}
+```
+
+The download URL can then be passed to the OneDrive MCP for upload, or presented directly to the user.
+
+### MCP Transports
+
+**Stdio** (Claude Desktop, Cline, local agents):
+```json
+{
+  "mcpServers": {
+    "holodex": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "MODE": "mcp-stdio"
+      }
+    }
+  }
+}
+```
+
+**StreamableHTTP** (Agent365, remote agents):
+```json
+{
+  "mcpServers": {
+    "holodex": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+For production Azure Container App deployments:
+```json
+{
+  "url": "https://your-app.azurecontainerapps.io/mcp"
+}
+```
+
+### Agent365 Integration
+
+HoloDex is registered in the Agent365 `ToolingManifest.json` as `mcp_HoloDex`:
+
+```json
+{
+  "id": "mcp_HoloDex",
+  "name": "HoloDex Presentation Engine",
+  "transportType": "streamablehttp",
+  "url": "http://localhost:3000/mcp",
+  "enabled": true
+}
+```
+
+Agent365 acts as a bridge between Claude Code and all Microsoft 365 MCP servers. When the orchestrating agent needs to create a presentation and save it to OneDrive, it chains:
+
+1. `mcp_HoloDex.create_presentation` (with `returnUrl: true`)
+2. `mcp_OneDriveSharePointTools.uploadFile` (with the download URL)
+3. `mcp_OneDriveSharePointTools.shareFileOrFolder` (to get a sharing link)
+
+## API Reference
+
+### Health Check
+
+```
+GET /api/v1/health
+```
+
+### Create Presentation
+
+```
+POST /api/v1/presentations
+Content-Type: application/json
+
+{
+  "title": "My Presentation",
+  "theme": {
+    "palette": "midnight-executive"
+  },
+  "slides": [
+    {
+      "type": "title",
+      "title": "Hello World",
+      "subtitle": "Generated by HoloDex"
+    },
+    {
+      "type": "bullet-list",
+      "title": "Key Points",
+      "bullets": ["First point", "Second point", "Third point"]
+    },
+    {
+      "type": "closing",
+      "title": "Thank You"
+    }
+  ]
+}
+```
+
+Response: `{ "base64": "...", "slideCount": 3, "filename": "..." }`
+
+### Download Presentation (file response)
+
+```
+POST /api/v1/presentations/download
+Content-Type: application/json
+
+(same body as above)
+```
+
+Response: `.pptx` file download
+
+### Download by ID
+
+```
+GET /api/v1/downloads/:id
+```
+
+Returns the stored PPTX file. Links are generated by MCP tools when `returnUrl: true`.
+
+### Quick Presentation (from outline)
+
+```
+POST /api/v1/presentations/quick
+Content-Type: application/json
+
+{
+  "title": "Sprint Review",
+  "outline": "Completed features\nBug fixes\nNext sprint goals",
+  "palette": "teal-trust"
+}
+```
+
+### Brand Management
+
+```bash
+# Register a brand
+POST /api/v1/brands
+{
+  "name": "acme-corp",
+  "primaryColor": "1a5276",
+  "secondaryColor": "2ecc71",
+  "accentColor": "e74c3c",
+  "headingFont": "Georgia",
+  "bodyFont": "Calibri",
+  "companyName": "Acme Corporation",
+  "tagline": "Innovation at Scale"
+}
+
+# List brands
+GET /api/v1/brands
+
+# Get brand details
+GET /api/v1/brands/acme-corp
+
+# Delete brand
+DELETE /api/v1/brands/acme-corp
+
+# Upload brand with logo
+POST /api/v1/brands/upload
+Content-Type: multipart/form-data
+(logo file + brand config)
+```
+
+### List Available Resources
+
+```bash
+# Color palettes
+GET /api/v1/palettes
+
+# Slide types
+GET /api/v1/slide-types
+
+# AI image generation status
+GET /api/v1/images/status
+```
+
+### AI Image Generation
+
+```bash
+# Generate a standalone image
+POST /api/v1/images/generate
+Content-Type: application/json
+
+{
+  "prompt": "Professional abstract visualization of data analytics with blue gradients",
+  "size": "1792x1024",
+  "style": "natural",
+  "quality": "auto"
+}
+```
+
+#### Using AI Images in Presentations
+
+Add `aiImage` to any slide to auto-generate an image. No need to set `aiImageSettings.enabled` — the engine detects `aiImage` fields automatically:
+
+```json
+{
+  "title": "My Presentation",
+  "slides": [
+    {
+      "type": "full-image",
+      "title": "Our Vision",
+      "subtitle": "Building the future of analytics",
+      "aiImage": {
+        "prompt": "Futuristic cityscape at sunset with data visualization overlays",
+        "placement": "full"
+      },
+      "overlayPosition": "bottom-left",
+      "scrim": true
+    },
+    {
+      "type": "content",
+      "title": "Market Overview",
+      "body": "The market is evolving rapidly...",
+      "aiImage": {
+        "prompt": "Abstract visualization of market growth trends",
+        "placement": "inline"
+      }
+    },
+    {
+      "type": "image-text",
+      "title": "Our Product",
+      "body": "Next-generation analytics platform...",
+      "image": { "altText": "Product screenshot" },
+      "aiImage": {
+        "prompt": "Modern software dashboard with clean UI design"
+      }
+    }
+  ]
+}
+```
+
+**Environment variables for AI images:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | — | OpenAI API key (DALL-E 3 or GPT-image-1) |
+| `AI_IMAGE_MODEL` | `gpt-image-1` | Model: `gpt-image-1` or `dall-e-3` |
+| `AI_IMAGE_PROVIDER` | auto | Provider: `openai` or `azure-openai`. Auto-detects if omitted. |
+| `AZURE_OPENAI_ENDPOINT` | — | Azure OpenAI endpoint URL |
+| `AZURE_OPENAI_API_KEY` | — | Azure OpenAI key (omit for Entra ID auth via `DefaultAzureCredential`) |
+| `AZURE_OPENAI_DEPLOYMENT` | `dall-e-3` | Azure deployment name |
+| `AZURE_OPENAI_API_VERSION` | `2024-02-01` | Azure API version |
+
+When using **Azure OpenAI with Entra ID**, leave `AZURE_OPENAI_API_KEY` blank. The engine uses `DefaultAzureCredential` from `@azure/identity` — this picks up `az login` credentials locally and Managed Identity in Azure Container Apps. The principal must have the **Cognitive Services OpenAI User** role on the Azure OpenAI resource.
+
+If no provider is configured, slides with `aiImage` will render a placeholder instead of crashing. A warning is included in the response.
+
+## Slide Types Reference
+
+| Type | Description |
+|------|-------------|
+| `title` | Opening slide with title and subtitle |
+| `section` | Dark section divider |
+| `content` | Text content with multi-paragraph support |
+| `two-column` | Side-by-side comparison layout |
+| `three-column` | Three-column card layout |
+| `bullet-list` | Bulleted list with up to 10 items |
+| `chart-bar` | Bar chart with multi-series data |
+| `chart-line` | Line chart with trend data |
+| `chart-pie` | Pie chart for distributions |
+| `chart-doughnut` | Doughnut chart variant |
+| `comparison` | Pro/con or A vs B layout |
+| `stat-callout` | Large number callouts (2-4 stats) |
+| `timeline` | Horizontal timeline with events |
+| `image-text` | Image alongside text content |
+| `icon-grid` | Grid of icons with labels |
+| `quote` | Centered quote with attribution |
+| `table` | Data table with headers and rows |
+| `team` | Team member cards with roles |
+| `agenda` | Numbered agenda items |
+| `closing` | Thank you / closing slide |
+| `blank` | Empty slide for manual content |
+| `full-image` | Full-bleed hero image with text overlay (AI or static) |
+
+## Color Palettes
+
+| Palette | Primary | Accent | Best For |
+|---------|---------|--------|----------|
+| `midnight-executive` | Dark navy | Gold | Executive, board decks |
+| `forest-moss` | Deep green | Sage | Sustainability, nature |
+| `coral-energy` | Coral red | Teal | Marketing, launches |
+| `warm-terracotta` | Terracotta | Cream | Creative, lifestyle |
+| `ocean-gradient` | Ocean blue | Seafoam | Tech, data |
+| `charcoal-minimal` | Charcoal | Light gray | Minimalist, professional |
+| `teal-trust` | Teal | Coral | Business, trust |
+| `berry-cream` | Berry purple | Blush | Fashion, premium |
+| `sage-calm` | Sage green | Stone | Healthcare, wellness |
+| `cherry-bold` | Cherry red | Dark | Bold, impact |
+
+## Server Modes
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| `api` | `MODE=api npm start` | HTTP REST API only |
+| `mcp-stdio` | `MODE=mcp-stdio npm start` | MCP via stdin/stdout |
+| `mcp-http` | `MODE=mcp-http npm start` | HTTP + MCP via StreamableHTTP |
+| `all` | `MODE=all npm start` | HTTP + MCP StreamableHTTP (default) |
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MODE` | `all` | Server mode |
+| `PORT` | `3000` | HTTP port |
+| `LOG_LEVEL` | `info` | Log level |
+| `OUTPUT_DIR` | `./output` | PPTX output directory |
+| `BRAND_STORAGE_DIR` | `./brands` | Brand config storage |
+| `CORS_ORIGINS` | `*` | Allowed CORS origins |
+| `PUBLIC_URL` | `http://localhost:3000` | Base URL for download links (set in production) |
+| `AZURE_STORAGE_ACCOUNT` | — | Azure blob storage account |
+| `AZURE_STORAGE_CONTAINER` | `pptx-output` | Blob container name |
+
+## Azure Deployment
+
+### Prerequisites
+
+- Azure CLI (`az`)
+- Azure Developer CLI (`azd`) — optional
+- Docker
+
+### Deploy with Azure Developer CLI
+
+```bash
+azd auth login
+azd init
+azd up
+```
+
+### Deploy with Azure CLI
+
+```bash
+# Create resource group
+az group create --name holodex-rg --location eastus2
+
+# Deploy infrastructure
+az deployment group create \
+  --resource-group holodex-rg \
+  --template-file infra/main.bicep \
+  --parameters infra/main.parameters.json
+
+# Build and push image
+az acr build --registry <your-acr> --image holodex:latest .
+
+# Update container app
+az containerapp update \
+  --name holodex \
+  --resource-group holodex-rg \
+  --image <your-acr>.azurecr.io/holodex:latest
+```
+
+### Infrastructure Included
+
+- **Azure Container App** — Auto-scaling (0-3 replicas), HTTP scaling rule
+- **Azure Blob Storage** — PPTX file storage with managed identity access
+- **Application Insights** — Monitoring and telemetry
+- **Log Analytics** — Centralized logging
+- **Managed Identity** — Passwordless auth to storage and registry
+
+## License
+
+MIT

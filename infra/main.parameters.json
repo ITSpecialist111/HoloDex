@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "pptx-engine"
+    },
+    "location": {
+      "value": "eastus2"
+    },
+    "containerImage": {
+      "value": ""
+    },
+    "containerRegistryServer": {
+      "value": ""
+    },
+    "cpuCores": {
+      "value": "1"
+    },
+    "memory": {
+      "value": "2Gi"
+    },
+    "minReplicas": {
+      "value": 0
+    },
+    "maxReplicas": {
+      "value": 3
+    }
+  }
+}

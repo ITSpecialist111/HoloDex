@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  pptx-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pptx-engine
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - MODE=${MODE:-all}
+      - PORT=3000
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OUTPUT_DIR=/app/output
+      - BRAND_STORAGE_DIR=/app/brands
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-}
+      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-pptx-output}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - pptx-output:/app/output
+      - pptx-brands:/app/brands
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  pptx-output:
+    driver: local
+  pptx-brands:
+    driver: local

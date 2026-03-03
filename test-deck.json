@@ -1,0 +1,185 @@
+{
+  "title": "HoloDex — AI-Powered Presentation Engine",
+  "palette": "midnight",
+  "slides": [
+    {
+      "type": "title",
+      "title": "HoloDex",
+      "subtitle": "AI-Powered Presentation Engine",
+      "author": "Graham Hosking",
+      "date": "March 2026"
+    },
+    {
+      "type": "agenda",
+      "title": "Agenda",
+      "items": [
+        { "title": "The Problem" },
+        { "title": "What is HoloDex?" },
+        { "title": "Architecture" },
+        { "title": "Core Features" },
+        { "title": "AI Image Generation" },
+        { "title": "MCP Integration" },
+        { "title": "Copilot Studio" },
+        { "title": "Roadmap" },
+        { "title": "Q&A" }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "The Problem",
+      "speakerNotes": "Everyone hates making PowerPoints manually. It takes hours for a decent deck."
+    },
+    {
+      "type": "two-column",
+      "title": "Death by PowerPoint",
+      "leftTitle": "The Old Way",
+      "leftContent": "• Open PowerPoint\n• Stare at blank slide\n• Fight with formatting\n• Copy-paste charts manually\n• Source stock photos\n• 3 hours later: mediocre deck",
+      "rightTitle": "The HoloDex Way",
+      "rightContent": "• Send JSON to an API\n• AI generates images\n• Charts rendered from data\n• Brand-consistent styling\n• Professional output in seconds\n• Never touch a GUI"
+    },
+    {
+      "type": "section",
+      "title": "What is HoloDex?"
+    },
+    {
+      "type": "content",
+      "title": "HoloDex at a Glance",
+      "body": "HoloDex is a programmatic presentation engine that generates professional PowerPoint files from structured JSON.\n\nIt supports 22 slide types, 10 color palettes, brand management, AI image generation, charts, icons, and speaker notes — all without touching a GUI.\n\nBuilt with TypeScript, PptxGenJS, and the Model Context Protocol (MCP).",
+      "speakerNotes": "Think of it as an API for PowerPoint. You describe what you want, HoloDex builds it."
+    },
+    {
+      "type": "stat-callout",
+      "title": "By the Numbers",
+      "stats": [
+        { "value": "22", "label": "Slide Types" },
+        { "value": "10", "label": "Color Palettes" },
+        { "value": "8", "label": "MCP Tools" },
+        { "value": "<1s", "label": "Generation Time" }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Architecture"
+    },
+    {
+      "type": "image-text",
+      "title": "System Architecture",
+      "body": "HoloDex runs as a dual-protocol server:\n\n• REST API on port 3000 for direct integration\n• MCP StreamableHTTP at /mcp for AI agent access\n• Express middleware handles routing and validation\n• PptxGenJS engine renders slides from typed schemas\n• Azure OpenAI generates images via Entra ID auth",
+      "aiImage": {
+        "prompt": "Clean system architecture diagram style illustration showing interconnected modules: API layer, engine core, AI image service, and MCP protocol, dark blue tech aesthetic with glowing connection lines"
+      }
+    },
+    {
+      "type": "section",
+      "title": "Core Features"
+    },
+    {
+      "type": "icon-grid",
+      "title": "Feature Highlights",
+      "items": [
+        { "title": "22 Slide Types", "description": "Title, content, charts, tables, timelines, and more", "icon": { "name": "grid", "library": "fa" } },
+        { "title": "Brand Management", "description": "Upload logos, colors, fonts — reuse across decks", "icon": { "name": "palette", "library": "fa" } },
+        { "title": "AI Images", "description": "DALL-E 3 via Azure OpenAI with Entra ID auth", "icon": { "name": "image", "library": "fa" } },
+        { "title": "Live Charts", "description": "Bar, line, pie, doughnut from raw data", "icon": { "name": "chart-bar", "library": "fa" } },
+        { "title": "Speaker Notes", "description": "Every slide supports presenter notes", "icon": { "name": "comment", "library": "fa" } },
+        { "title": "MCP Protocol", "description": "StreamableHTTP for AI agent integration", "icon": { "name": "plug", "library": "fa" } }
+      ]
+    },
+    {
+      "type": "chart-bar",
+      "title": "Slide Type Usage Distribution",
+      "series": [
+        { "name": "Frequency", "labels": ["Content", "Two-Col", "Chart", "Image", "Table", "Timeline", "Other"], "values": [32, 24, 18, 14, 8, 6, 12] }
+      ],
+      "speakerNotes": "Content and two-column slides are the most commonly used. Charts and images follow closely."
+    },
+    {
+      "type": "chart-pie",
+      "title": "Color Palette Popularity",
+      "series": [
+        { "name": "Usage", "labels": ["Midnight", "Ocean", "Corporate", "Sunset", "Forest", "Other"], "values": [28, 22, 20, 12, 10, 8] }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "AI Image Generation"
+    },
+    {
+      "type": "two-column",
+      "title": "Three Auth Options",
+      "leftTitle": "Provider Options",
+      "leftContent": "1. OpenAI Direct\n   DALL-E 3 or GPT-image-1\n\n2. Azure OpenAI + API Key\n   Standard key authentication\n\n3. Azure OpenAI + Entra ID\n   DefaultAzureCredential\n   No API key required",
+      "rightTitle": "How It Works",
+      "rightContent": "• Add aiImage field to any slide\n• Engine auto-detects and generates\n• Images cached for batch efficiency\n• Graceful fallback to placeholder\n• Theme-aware prompt refinement\n• Supports 1024x1024 to 1792x1024"
+    },
+    {
+      "type": "image-text",
+      "title": "AI-Generated Imagery",
+      "body": "Every image in this deck was generated by DALL-E 3 running on Azure OpenAI, authenticated via Entra ID with DefaultAzureCredential.\n\nNo API keys were used — just az login and the Cognitive Services OpenAI User RBAC role.",
+      "aiImage": {
+        "prompt": "Abstract neural network visualization with flowing data streams in deep blue and purple, professional presentation style, dark background with luminous particles"
+      }
+    },
+    {
+      "type": "section",
+      "title": "MCP Integration"
+    },
+    {
+      "type": "table",
+      "title": "MCP Tools Reference",
+      "headers": ["Tool", "Purpose"],
+      "rows": [
+        ["create_presentation", "Generate a full PPTX from JSON"],
+        ["list_palettes", "Browse 10 built-in color schemes"],
+        ["get_slide_types", "Schema reference for all 22 types"],
+        ["get_brand", "Retrieve saved brand assets"],
+        ["save_brand", "Store logo, colors, fonts"],
+        ["list_brands", "List all saved brands"],
+        ["delete_brand", "Remove a brand"],
+        ["generate_image", "Create standalone AI images"]
+      ]
+    },
+    {
+      "type": "content",
+      "title": "Agent365 — The Bridge",
+      "body": "Agent365 is a unified MCP gateway that connects AI agents to multiple tool servers through a single StreamableHTTP endpoint.\n\nHoloDex is registered as mcp_HoloDex in the Agent365 manifest, making it accessible to any MCP-compatible agent including GitHub Copilot, Copilot Studio, and Claude.\n\nThe transport uses StreamableHTTP at /mcp — no stdio piping required."
+    },
+    {
+      "type": "section",
+      "title": "Copilot Studio"
+    },
+    {
+      "type": "image-text",
+      "title": "Copilot Studio Integration",
+      "body": "HoloDex works with Microsoft Copilot Studio via the returnUrl pattern:\n\n1. Agent calls create_presentation with a returnUrl\n2. HoloDex generates the PPTX and stores it\n3. Returns a download URL valid for 1 hour\n4. Agent presents the link to the user\n\nThis avoids base64 transfer limits in conversational AI.",
+      "aiImage": {
+        "prompt": "Modern chat interface with a presentation document being generated, showing a conversational AI assistant creating slides, clean dark UI with blue accents"
+      }
+    },
+    {
+      "type": "timeline",
+      "title": "Development Roadmap",
+      "steps": [
+        { "title": "v1.0 — Core Engine", "description": "22 slide types, REST API, PptxGenJS rendering" },
+        { "title": "v1.1 — Design v2", "description": "Modern fonts, footers, motifs, rounded cards, dark charts" },
+        { "title": "v1.2 — MCP + Agent365", "description": "StreamableHTTP transport, Agent365 bridge" },
+        { "title": "v1.3 — Azure AI Images", "description": "DALL-E 3 via Azure OpenAI with Entra ID auth" },
+        { "title": "v2.0 — What's Next?", "description": "Template library, animations, PDF export" }
+      ]
+    },
+    {
+      "type": "quote",
+      "title": "Philosophy",
+      "quote": "The best presentation tool is the one you never have to open.",
+      "attribution": "The HoloDex Manifesto"
+    },
+    {
+      "type": "closing",
+      "title": "Thank You",
+      "subtitle": "Questions?",
+      "contactInfo": {
+        "website": "github.com/graham-hosking/holodex"
+      }
+    }
+  ]
+}
