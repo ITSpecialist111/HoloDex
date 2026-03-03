@@ -210,9 +210,9 @@ function addFooter(
 
 function addTitleAccent(pptxSlide: PptxSlide, pres: any, theme: DesignTheme): void {
   pptxSlide.addShape(pres.shapes.RECTANGLE, {
-    x: MARGIN_X, y: ACCENT_Y, w: ACCENT_W, h: ACCENT_H,
+    x: MARGIN_X, y: ACCENT_Y, w: ACCENT_W + 0.3, h: 0.10,
     fill: { color: theme.palette.primary },
-    rectRadius: ACCENT_H / 2,
+    rectRadius: 0.05,
   });
 }
 
@@ -250,73 +250,105 @@ export async function renderTitleSlide(
   const pptxSlide = ctx.pres.addSlide();
   const t = ctx.theme;
   const typo = t.typography!;
+  const accentColor = t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent;
+  const primaryColor = t.palette.primary;
 
   // Dark background for title slides
   pptxSlide.background = { color: t.palette.backgroundDark };
 
-  // Accent bar at top
+  // ── Decorative shapes ──────────────────────────────────
+  // Large translucent circle — bottom-right (hero graphic)
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 3.8, y: SLIDE_H - 3.2, w: 5.0, h: 5.0,
+    fill: { color: primaryColor, transparency: 88 },
+  });
+  // Smaller accent circle overlapping
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 2.0, y: SLIDE_H - 2.6, w: 2.8, h: 2.8,
+    fill: { color: accentColor, transparency: 82 },
+  });
+  // Top-left subtle circle
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: -0.8, y: -0.8, w: 2.0, h: 2.0,
+    fill: { color: primaryColor, transparency: 92 },
+  });
+
+  // Thick left accent bar (full height)
   pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-    x: 0, y: 0, w: SLIDE_W, h: ACCENT_H,
-    fill: { color: t.palette.accent === 'FFFFFF' ? t.palette.primary : t.palette.accent },
+    x: 0, y: 0, w: 0.14, h: SLIDE_H,
+    fill: { color: accentColor },
+  });
+
+  // Thin top accent strip
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0.14, y: 0, w: SLIDE_W - 0.14, h: 0.04,
+    fill: { color: primaryColor, transparency: 40 },
   });
 
   // Brand logo if available
   if (ctx.brand?.logoBase64) {
     pptxSlide.addImage({
       data: ctx.brand.logoBase64,
-      x: MARGIN_X, y: 0.5, w: 1.2, h: 0.6,
+      x: MARGIN_X + 0.2, y: 0.5, w: 1.2, h: 0.6,
       sizing: { type: 'contain', w: 1.2, h: 0.6 },
     });
   }
 
   // Title
-  const titleYPos = ctx.brand?.logoBase64 ? 1.5 : 1.2;
+  const titleYPos = ctx.brand?.logoBase64 ? 1.5 : 1.0;
   pptxSlide.addText(slide.title, {
-    x: MARGIN_X, y: titleYPos, w: CONTENT_W, h: 1.6,
-    fontSize: typo.titleSize + 4,
+    x: MARGIN_X + 0.2, y: titleYPos, w: CONTENT_W * 0.75, h: 1.8,
+    fontSize: typo.titleSize + 6,
     fontFace: typo.headerFont,
     color: t.palette.textOnDark,
     bold: true,
     align: 'left',
     valign: 'bottom',
     margin: 0,
+    lineSpacingMultiple: 1.1,
   });
 
-  // Accent line under title
-  const accentColor = t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent;
+  // Wide accent line under title
   pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-    x: MARGIN_X, y: titleYPos + 1.7, w: 2.2, h: ACCENT_H,
+    x: MARGIN_X + 0.2, y: titleYPos + 1.9, w: 3.0, h: 0.12,
     fill: { color: accentColor },
-    rectRadius: ACCENT_H / 2,
+    rectRadius: 0.06,
   });
 
   // Subtitle
   if (slide.subtitle) {
     pptxSlide.addText(slide.subtitle, {
-      x: MARGIN_X, y: titleYPos + 2.0, w: CONTENT_W, h: 0.8,
-      fontSize: typo.subtitleSize,
+      x: MARGIN_X + 0.2, y: titleYPos + 2.2, w: CONTENT_W * 0.7, h: 0.8,
+      fontSize: typo.subtitleSize + 2,
       fontFace: typo.bodyFont,
-      color: lightenColor(t.palette.textOnDark, 30),
+      color: lightenColor(t.palette.textOnDark, 25),
       align: 'left',
       valign: 'top',
       margin: 0,
+      lineSpacingMultiple: 1.3,
     });
   }
 
-  // Author and date at bottom
+  // Author and date at bottom-left
   const bottomItems: string[] = [];
   if (slide.author) bottomItems.push(slide.author);
   if (slide.date) bottomItems.push(slide.date);
   if (bottomItems.length > 0) {
     pptxSlide.addText(bottomItems.join('  \u2022  '), {
-      x: MARGIN_X, y: 4.6, w: CONTENT_W, h: 0.4,
-      fontSize: typo.captionSize,
+      x: MARGIN_X + 0.2, y: 4.5, w: CONTENT_W, h: 0.4,
+      fontSize: typo.captionSize + 1,
       fontFace: typo.bodyFont,
       color: lightenColor(t.palette.textOnDark, 40),
       align: 'left',
       margin: 0,
     });
   }
+
+  // Bottom accent bar
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: SLIDE_H - 0.08, w: SLIDE_W, h: 0.08,
+    fill: { color: primaryColor },
+  });
 
   addFooter(pptxSlide, ctx.pres, ctx, true);
   addSpeakerNotes(pptxSlide, slide.speakerNotes);
@@ -329,28 +361,53 @@ export async function renderSectionSlide(
   const pptxSlide = ctx.pres.addSlide();
   const t = ctx.theme;
   const typo = t.typography!;
+  const accentColor = t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent;
+  const primaryColor = t.palette.primary;
 
   // Dark background for section dividers
   pptxSlide.background = { color: t.palette.backgroundDark };
 
+  // ── Decorative shapes ──────────────────────────────────
+  // Right-side colored block
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: SLIDE_W - 2.5, y: 0, w: 2.5, h: SLIDE_H,
+    fill: { color: primaryColor, transparency: 85 },
+  });
+  // Large circle — top-right
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 3.0, y: -1.0, w: 3.5, h: 3.5,
+    fill: { color: accentColor, transparency: 85 },
+  });
+  // Small circle — bottom-left
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: -0.5, y: SLIDE_H - 1.5, w: 1.8, h: 1.8,
+    fill: { color: primaryColor, transparency: 90 },
+  });
+
+  // Left accent bar
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: 0, w: 0.14, h: SLIDE_H,
+    fill: { color: accentColor },
+  });
+
   // Section number if provided
   if (slide.sectionNumber) {
     pptxSlide.addText(String(slide.sectionNumber).padStart(2, '0'), {
-      x: MARGIN_X, y: 0.8, w: 2, h: 1.2,
-      fontSize: 72,
+      x: MARGIN_X + 0.2, y: 0.4, w: 2.5, h: 1.6,
+      fontSize: 88,
       fontFace: typo.headerFont,
-      color: t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent,
+      color: accentColor,
       bold: true,
       align: 'left',
       margin: 0,
-      transparency: 30,
+      transparency: 15,
     });
   }
 
   // Section title
   pptxSlide.addText(slide.title, {
-    x: MARGIN_X, y: 1.8, w: CONTENT_W, h: 1.5,
-    fontSize: typo.titleSize,
+    x: MARGIN_X + 0.2, y: 1.8, w: CONTENT_W * 0.7, h: 1.5,
+    fontSize: typo.titleSize + 2,
     fontFace: typo.headerFont,
     color: t.palette.textOnDark,
     bold: true,
@@ -359,23 +416,30 @@ export async function renderSectionSlide(
     margin: 0,
   });
 
+  // Accent line under title
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: MARGIN_X + 0.2, y: 3.35, w: 2.0, h: 0.10,
+    fill: { color: accentColor },
+    rectRadius: 0.05,
+  });
+
   // Subtitle
   if (slide.subtitle) {
     pptxSlide.addText(slide.subtitle, {
-      x: MARGIN_X, y: 3.4, w: CONTENT_W, h: 0.8,
+      x: MARGIN_X + 0.2, y: 3.6, w: CONTENT_W * 0.65, h: 0.8,
       fontSize: typo.subtitleSize,
       fontFace: typo.bodyFont,
       color: lightenColor(t.palette.textOnDark, 30),
       align: 'left',
       margin: 0,
+      lineSpacingMultiple: 1.3,
     });
   }
 
-  // Bottom accent bar
+  // Bottom accent strip
   pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-    x: MARGIN_X, y: 4.6, w: 1.6, h: ACCENT_H,
-    fill: { color: t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent },
-    rectRadius: ACCENT_H / 2,
+    x: 0, y: SLIDE_H - 0.06, w: SLIDE_W, h: 0.06,
+    fill: { color: primaryColor },
   });
 
   addFooter(pptxSlide, ctx.pres, ctx, true);
@@ -396,10 +460,19 @@ export async function renderContentSlide(
   const textColor = getTextColor(slide, t);
   const subColor = getSubTextColor(slide, t);
 
+  // Subtle header background band
+  const headerBandColor = isDark
+    ? lightenColor(t.palette.backgroundDark, 6)
+    : lightenColor(t.palette.primary, 94);
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: 0, w: SLIDE_W, h: BODY_Y - 0.1,
+    fill: { color: headerBandColor },
+  });
+
   // Title
   pptxSlide.addText(slide.title, {
     x: MARGIN_X, y: TITLE_Y, w: CONTENT_W, h: TITLE_H,
-    fontSize: typo.headingSize,
+    fontSize: typo.headingSize + 2,
     fontFace: typo.headerFont,
     color: textColor,
     bold: true,
@@ -484,7 +557,7 @@ export async function renderTwoColumnSlide(
   });
 
   const layout = columnLayout(2);
-  const cardFill = isDark ? lightenColor(t.palette.backgroundDark, 10) : 'F8F9FA';
+  const cardFill = isDark ? lightenColor(t.palette.backgroundDark, 10) : 'FFFFFF';
   const accentColors = [t.palette.primary, t.palette.secondary !== 'E8ECEF' ? t.palette.secondary : t.palette.accent];
 
   for (let i = 0; i < 2; i++) {
@@ -492,19 +565,19 @@ export async function renderTwoColumnSlide(
     const content = i === 0 ? slide.leftContent : slide.rightContent;
     const title = i === 0 ? slide.leftTitle : slide.rightTitle;
 
-    // Card background (rounded)
+    // Card background (rounded, elevated)
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
       x, y: BODY_Y, w: layout.cardW, h: BODY_H,
       fill: { color: cardFill },
-      shadow: makeCardShadow(),
-      rectRadius: CARD_RADIUS,
+      shadow: makeShadow({ blur: 12, offset: 4, opacity: 0.12 }),
+      rectRadius: CARD_RADIUS * 1.5,
     });
 
-    // Left accent bar on card
+    // Thick left accent bar on card
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-      x, y: BODY_Y, w: 0.08, h: BODY_H,
+      x, y: BODY_Y + CARD_RADIUS, w: 0.12, h: BODY_H - CARD_RADIUS * 2,
       fill: { color: accentColors[i] },
-      rectRadius: 0.04,
+      rectRadius: 0.06,
     });
 
     if (title) {
@@ -561,24 +634,26 @@ export async function renderThreeColumnSlide(
 
   const layout = columnLayout(3);
   const colColors = [t.palette.primary, t.palette.secondary, t.palette.accent];
-  const cardFill = isDark ? lightenColor(t.palette.backgroundDark, 10) : 'F8F9FA';
+  const cardFill = isDark ? lightenColor(t.palette.backgroundDark, 10) : 'FFFFFF';
 
   for (let i = 0; i < 3; i++) {
     const col = slide.columns[i];
     const x = layout.positions[i];
+    const cardColor = colColors[i] !== 'FFFFFF' ? colColors[i] : t.palette.primary;
 
-    // Card background (rounded)
+    // Card background (rounded, elevated)
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
       x, y: BODY_Y, w: layout.cardW, h: BODY_H,
       fill: { color: cardFill },
-      shadow: makeCardShadow(),
-      rectRadius: CARD_RADIUS,
+      shadow: makeShadow({ blur: 12, offset: 4, opacity: 0.12 }),
+      rectRadius: CARD_RADIUS * 1.5,
     });
 
-    // Top accent bar (inset from rounded corners)
+    // Thick top accent bar (inset from rounded corners)
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-      x: x + CARD_RADIUS, y: BODY_Y, w: layout.cardW - CARD_RADIUS * 2, h: ACCENT_H,
-      fill: { color: colColors[i] !== 'FFFFFF' ? colColors[i] : t.palette.primary },
+      x: x + CARD_RADIUS, y: BODY_Y, w: layout.cardW - CARD_RADIUS * 2, h: 0.14,
+      fill: { color: cardColor },
+      rectRadius: 0.04,
     });
 
     // Icon if provided
@@ -645,10 +720,19 @@ export async function renderBulletListSlide(
   const textColor = getTextColor(slide, t);
   const subColor = getSubTextColor(slide, t);
 
+  // Subtle header background band
+  const headerBandColor = isDark
+    ? lightenColor(t.palette.backgroundDark, 6)
+    : lightenColor(t.palette.primary, 94);
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: 0, w: SLIDE_W, h: BODY_Y - 0.1,
+    fill: { color: headerBandColor },
+  });
+
   // Title
   pptxSlide.addText(slide.title, {
     x: MARGIN_X, y: TITLE_Y, w: CONTENT_W, h: TITLE_H,
-    fontSize: typo.headingSize,
+    fontSize: typo.headingSize + 2,
     fontFace: typo.headerFont,
     color: textColor,
     bold: true,
@@ -657,20 +741,21 @@ export async function renderBulletListSlide(
 
   addTitleAccent(pptxSlide, ctx.pres, t);
 
-  // Build bullet items
+  // Build bullet items — colored bullet markers
   const textItems: Array<{ text: string; options: Record<string, any> }> = [];
 
   for (const item of slide.items) {
     textItems.push({
       text: item.text,
       options: {
-        bullet: true,
-        fontSize: typo.bodySize,
+        bullet: { type: 'bullet', characterCode: '25CF' },
+        fontSize: typo.bodySize + 1,
         fontFace: typo.bodyFont,
         color: textColor,
         bold: true,
         breakLine: true,
-        paraSpaceAfter: 6,
+        paraSpaceAfter: 8,
+        paraSpaceBefore: 4,
       },
     });
 
@@ -679,9 +764,9 @@ export async function renderBulletListSlide(
         textItems.push({
           text: sub,
           options: {
-            bullet: true,
+            bullet: { type: 'bullet', characterCode: '25CB' },
             indentLevel: 1,
-            fontSize: typo.bodySize - 1,
+            fontSize: typo.bodySize,
             fontFace: typo.bodyFont,
             color: subColor,
             breakLine: true,
@@ -962,15 +1047,16 @@ export async function renderComparisonSlide(
   const leftColor = slide.leftColor || t.palette.primary;
   const rightColor = slide.rightColor || (t.palette.secondary !== 'E8ECEF' ? t.palette.secondary : t.palette.accent);
 
-  // Left column header (rounded top)
+  // Left column header (rounded top, taller)
   pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-    x: layout.positions[0], y: BODY_Y, w: layout.cardW, h: 0.6,
+    x: layout.positions[0], y: BODY_Y, w: layout.cardW, h: 0.7,
     fill: { color: leftColor },
-    rectRadius: CARD_RADIUS,
+    rectRadius: CARD_RADIUS * 1.5,
+    shadow: makeShadow({ blur: 6, offset: 2, opacity: 0.12 }),
   });
   pptxSlide.addText(slide.leftTitle, {
-    x: layout.positions[0], y: BODY_Y, w: layout.cardW, h: 0.6,
-    fontSize: typo.bodySize + 2,
+    x: layout.positions[0], y: BODY_Y, w: layout.cardW, h: 0.7,
+    fontSize: typo.bodySize + 3,
     fontFace: typo.headerFont,
     color: isDarkColor(leftColor) ? 'FFFFFF' : t.palette.text,
     bold: true,
@@ -983,36 +1069,53 @@ export async function renderComparisonSlide(
   const leftItems = slide.leftItems.map((item, i) => ({
     text: item,
     options: {
-      bullet: true,
-      fontSize: typo.bodySize,
+      bullet: { type: 'bullet', characterCode: '25CF' },
+      fontSize: typo.bodySize + 1,
       fontFace: typo.bodyFont,
       color: textColor,
       breakLine: i < slide.leftItems.length - 1,
-      paraSpaceAfter: 6,
+      paraSpaceAfter: 8,
     },
   }));
   pptxSlide.addText(leftItems, {
-    x: layout.positions[0] + 0.2, y: BODY_Y + 0.8, w: layout.cardW - 0.4, h: BODY_H - 1.0,
+    x: layout.positions[0] + 0.2, y: BODY_Y + 0.9, w: layout.cardW - 0.4, h: BODY_H - 1.1,
     valign: 'top',
     margin: 0,
   });
 
-  // Divider line
+  // "VS" badge in center divider
   const midX = layout.positions[0] + layout.cardW + GUTTER / 2;
   pptxSlide.addShape(ctx.pres.shapes.LINE, {
     x: midX, y: BODY_Y, w: 0, h: BODY_H,
     line: { color: isDark ? lightenColor(t.palette.backgroundDark, 20) : 'E2E8F0', width: 1.5 },
   });
+  // VS circle badge
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: midX - 0.28, y: BODY_Y + BODY_H / 2 - 0.28, w: 0.56, h: 0.56,
+    fill: { color: isDark ? lightenColor(t.palette.backgroundDark, 15) : 'FFFFFF' },
+    shadow: makeShadow({ blur: 4, offset: 1, opacity: 0.15 }),
+  });
+  pptxSlide.addText('VS', {
+    x: midX - 0.28, y: BODY_Y + BODY_H / 2 - 0.28, w: 0.56, h: 0.56,
+    fontSize: 10,
+    fontFace: typo.headerFont,
+    color: isDark ? t.palette.textOnDark : t.palette.textLight,
+    bold: true,
+    align: 'center',
+    valign: 'middle',
+    margin: 0,
+  });
 
-  // Right column header (rounded top)
+  // Right column header (rounded top, taller)
   pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-    x: layout.positions[1], y: BODY_Y, w: layout.cardW, h: 0.6,
+    x: layout.positions[1], y: BODY_Y, w: layout.cardW, h: 0.7,
     fill: { color: rightColor },
-    rectRadius: CARD_RADIUS,
+    rectRadius: CARD_RADIUS * 1.5,
+    shadow: makeShadow({ blur: 6, offset: 2, opacity: 0.12 }),
   });
   pptxSlide.addText(slide.rightTitle, {
-    x: layout.positions[1], y: BODY_Y, w: layout.cardW, h: 0.6,
-    fontSize: typo.bodySize + 2,
+    x: layout.positions[1], y: BODY_Y, w: layout.cardW, h: 0.7,
+    fontSize: typo.bodySize + 3,
     fontFace: typo.headerFont,
     color: isDarkColor(rightColor) ? 'FFFFFF' : t.palette.text,
     bold: true,
@@ -1025,16 +1128,16 @@ export async function renderComparisonSlide(
   const rightItems = slide.rightItems.map((item, i) => ({
     text: item,
     options: {
-      bullet: true,
-      fontSize: typo.bodySize,
+      bullet: { type: 'bullet', characterCode: '25CF' },
+      fontSize: typo.bodySize + 1,
       fontFace: typo.bodyFont,
       color: textColor,
       breakLine: i < slide.rightItems.length - 1,
-      paraSpaceAfter: 6,
+      paraSpaceAfter: 8,
     },
   }));
   pptxSlide.addText(rightItems, {
-    x: layout.positions[1] + 0.2, y: BODY_Y + 0.8, w: layout.cardW - 0.4, h: BODY_H - 1.0,
+    x: layout.positions[1] + 0.2, y: BODY_Y + 0.9, w: layout.cardW - 0.4, h: BODY_H - 1.1,
     valign: 'top',
     margin: 0,
   });
@@ -1072,41 +1175,59 @@ export async function renderStatCalloutSlide(
   const layout = columnLayout(statCount);
   const startY = slide.title ? BODY_Y : 1.0;
   const cardHeight = slide.title ? BODY_H : BODY_H + 0.3;
+  const statColors = [t.palette.primary, t.palette.accent !== 'FFFFFF' ? t.palette.accent : t.palette.primary, t.palette.secondary !== 'E8ECEF' ? t.palette.secondary : t.palette.primary];
 
   for (let i = 0; i < statCount; i++) {
     const stat = slide.stats[i];
     const x = layout.positions[i];
+    const statColor = statColors[i % statColors.length];
 
-    // Card (rounded)
+    // Card (rounded, elevated)
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
       x, y: startY, w: layout.cardW, h: cardHeight,
-      fill: { color: isDark ? lightenColor(t.palette.backgroundDark, 8) : 'F8F9FA' },
-      shadow: makeCardShadow(),
-      rectRadius: CARD_RADIUS,
+      fill: { color: isDark ? lightenColor(t.palette.backgroundDark, 8) : 'FFFFFF' },
+      shadow: makeShadow({ blur: 12, offset: 4, opacity: 0.14 }),
+      rectRadius: CARD_RADIUS * 1.5,
     });
 
-    // Top accent (inset from rounded corners)
+    // Thick colored top accent bar
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-      x: x + CARD_RADIUS, y: startY, w: layout.cardW - CARD_RADIUS * 2, h: ACCENT_H,
-      fill: { color: t.palette.primary },
+      x: x + CARD_RADIUS, y: startY, w: layout.cardW - CARD_RADIUS * 2, h: 0.16,
+      fill: { color: statColor },
+      rectRadius: 0.04,
     });
 
-    // Big number
+    // Subtle colored circle behind number
+    const circleSize = 1.6;
+    pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+      x: x + layout.cardW / 2 - circleSize / 2, y: startY + 0.5,
+      w: circleSize, h: circleSize,
+      fill: { color: statColor, transparency: 90 },
+    });
+
+    // Big number — much larger for impact
     pptxSlide.addText(stat.value, {
-      x: x + CARD_PAD, y: startY + 0.5, w: layout.cardW - CARD_PAD * 2, h: 1.5,
-      fontSize: 56,
+      x: x + CARD_PAD, y: startY + 0.4, w: layout.cardW - CARD_PAD * 2, h: 1.8,
+      fontSize: 68,
       fontFace: typo.headerFont,
-      color: t.palette.primary,
+      color: statColor,
       bold: true,
       align: 'center',
       valign: 'middle',
       margin: 0,
     });
 
+    // Small accent line between number and label
+    pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+      x: x + layout.cardW / 2 - 0.4, y: startY + 2.3, w: 0.8, h: 0.05,
+      fill: { color: statColor, transparency: 40 },
+      rectRadius: 0.025,
+    });
+
     // Label
     pptxSlide.addText(stat.label, {
-      x: x + CARD_PAD, y: startY + 2.0, w: layout.cardW - CARD_PAD * 2, h: 1.2,
-      fontSize: typo.bodySize,
+      x: x + CARD_PAD, y: startY + 2.5, w: layout.cardW - CARD_PAD * 2, h: 1.0,
+      fontSize: typo.bodySize + 1,
       fontFace: typo.bodyFont,
       color: subColor,
       align: 'center',
@@ -1148,29 +1269,43 @@ export async function renderTimelineSlide(
   const lineY = 2.8;
   const startX = 1.0;
   const endX = 9.0;
-  const stepSpacing = (endX - startX) / (stepCount - 1);
+  const stepSpacing = (endX - startX) / Math.max(stepCount - 1, 1);
+  const accentColor = t.palette.accent !== 'FFFFFF' ? t.palette.accent : t.palette.secondary;
 
-  // Horizontal connector line
+  // Horizontal connector line — thicker, with shadow
   pptxSlide.addShape(ctx.pres.shapes.LINE, {
     x: startX, y: lineY, w: endX - startX, h: 0,
-    line: { color: t.palette.primary, width: 2.5 },
+    line: { color: lightenColor(t.palette.primary, 60), width: 4 },
+  });
+  // Accent overlay line on top
+  pptxSlide.addShape(ctx.pres.shapes.LINE, {
+    x: startX, y: lineY, w: endX - startX, h: 0,
+    line: { color: t.palette.primary, width: 2 },
   });
 
   for (let i = 0; i < stepCount; i++) {
     const step = slide.steps[i];
     const x = startX + i * stepSpacing;
+    const nodeSize = 0.56;
 
-    // Circle node
+    // Outer glow ring
     pptxSlide.addShape(ctx.pres.shapes.OVAL, {
-      x: x - 0.22, y: lineY - 0.22, w: 0.44, h: 0.44,
+      x: x - nodeSize / 2 - 0.06, y: lineY - nodeSize / 2 - 0.06,
+      w: nodeSize + 0.12, h: nodeSize + 0.12,
+      fill: { color: t.palette.primary, transparency: 70 },
+    });
+
+    // Circle node — larger
+    pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+      x: x - nodeSize / 2, y: lineY - nodeSize / 2, w: nodeSize, h: nodeSize,
       fill: { color: t.palette.primary },
-      shadow: makeShadow({ blur: 4, offset: 1, opacity: 0.2 }),
+      shadow: makeShadow({ blur: 6, offset: 2, opacity: 0.25 }),
     });
 
     // Step number inside circle
     pptxSlide.addText(String(i + 1), {
-      x: x - 0.22, y: lineY - 0.22, w: 0.44, h: 0.44,
-      fontSize: 12,
+      x: x - nodeSize / 2, y: lineY - nodeSize / 2, w: nodeSize, h: nodeSize,
+      fontSize: 16,
       fontFace: typo.headerFont,
       color: isDarkColor(t.palette.primary) ? 'FFFFFF' : t.palette.text,
       bold: true,
@@ -1181,13 +1316,21 @@ export async function renderTimelineSlide(
 
     // Step title (alternating above/below)
     const isAbove = i % 2 === 0;
-    const titleY = isAbove ? lineY - 1.2 : lineY + 0.5;
-    const descY = isAbove ? lineY - 0.7 : lineY + 0.9;
+    const titleY = isAbove ? lineY - 1.3 : lineY + 0.55;
+    const descY = isAbove ? lineY - 0.75 : lineY + 1.0;
     const textWidth = Math.min(stepSpacing * 0.9, 2.0);
+
+    // Connecting stem line from node to text
+    const stemStartY = isAbove ? lineY - nodeSize / 2 : lineY + nodeSize / 2;
+    const stemEndY = isAbove ? lineY - 0.5 : lineY + 0.5;
+    pptxSlide.addShape(ctx.pres.shapes.LINE, {
+      x, y: Math.min(stemStartY, stemEndY), w: 0, h: Math.abs(stemEndY - stemStartY),
+      line: { color: lightenColor(t.palette.primary, 40), width: 1 },
+    });
 
     pptxSlide.addText(step.title, {
       x: x - textWidth / 2, y: titleY, w: textWidth, h: 0.5,
-      fontSize: typo.bodySize,
+      fontSize: typo.bodySize + 1,
       fontFace: typo.headerFont,
       color: textColor,
       bold: true,
@@ -1388,25 +1531,50 @@ export async function renderQuoteSlide(
   const t = ctx.theme;
   const typo = t.typography!;
   const quoteFont = (typo as any).quoteFont || 'Georgia';
+  const accentColor = t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent;
 
   // Dark background for impact
   pptxSlide.background = { color: t.palette.backgroundDark };
 
-  // Large decorative quote mark
+  // ── Decorative elements ──────────────────────────────────
+  // Left accent bar
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: 0, w: 0.12, h: SLIDE_H,
+    fill: { color: accentColor },
+  });
+  // Subtle circle bottom-right
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 2.0, y: SLIDE_H - 1.8, w: 2.5, h: 2.5,
+    fill: { color: t.palette.primary, transparency: 90 },
+  });
+
+  // Large decorative opening quote mark
   pptxSlide.addText('\u201C', {
-    x: 0.5, y: 0.2, w: 2, h: 2,
-    fontSize: 120,
+    x: 0.4, y: -0.2, w: 2.5, h: 2.5,
+    fontSize: 160,
     fontFace: quoteFont,
-    color: t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent,
+    color: accentColor,
     bold: true,
     margin: 0,
-    transparency: 35,
+    transparency: 25,
+  });
+
+  // Closing quote mark
+  pptxSlide.addText('\u201D', {
+    x: SLIDE_W - 2.5, y: 2.2, w: 2.5, h: 2.5,
+    fontSize: 120,
+    fontFace: quoteFont,
+    color: accentColor,
+    bold: true,
+    align: 'right',
+    margin: 0,
+    transparency: 45,
   });
 
   // Quote text (uses quoteFont)
   pptxSlide.addText(slide.quote, {
-    x: 1.3, y: 1.2, w: 7.2, h: 2.5,
-    fontSize: typo.subtitleSize + 2,
+    x: 1.3, y: 1.0, w: 7.2, h: 2.8,
+    fontSize: typo.subtitleSize + 4,
     fontFace: quoteFont,
     color: t.palette.textOnDark,
     italic: true,
@@ -1418,11 +1586,11 @@ export async function renderQuoteSlide(
 
   // Attribution
   if (slide.attribution) {
-    // Accent line
+    // Accent line — wider
     pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
-      x: 1.3, y: 3.9, w: 1.0, h: ACCENT_H,
-      fill: { color: t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent },
-      rectRadius: ACCENT_H / 2,
+      x: 1.3, y: 4.0, w: 1.6, h: 0.10,
+      fill: { color: accentColor },
+      rectRadius: 0.05,
     });
 
     const attrText = slide.role
@@ -1631,15 +1799,40 @@ export async function renderClosingSlide(
   const pptxSlide = ctx.pres.addSlide();
   const t = ctx.theme;
   const typo = t.typography!;
+  const accentColor = t.palette.accent === 'FFFFFF' ? t.palette.secondary : t.palette.accent;
+  const primaryColor = t.palette.primary;
 
   // Dark background for closing
   pptxSlide.background = { color: t.palette.backgroundDark };
+
+  // ── Decorative shapes (mirror title slide) ──────────────
+  // Large translucent circle — top-left
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: -2.0, y: -2.0, w: 5.0, h: 5.0,
+    fill: { color: primaryColor, transparency: 88 },
+  });
+  // Smaller accent circle — bottom-right
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 2.5, y: SLIDE_H - 2.0, w: 3.0, h: 3.0,
+    fill: { color: accentColor, transparency: 85 },
+  });
+  // Small circle — top-right
+  pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+    x: SLIDE_W - 1.5, y: -0.5, w: 1.5, h: 1.5,
+    fill: { color: primaryColor, transparency: 90 },
+  });
+
+  // Top accent strip
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: 0, y: 0, w: SLIDE_W, h: 0.06,
+    fill: { color: accentColor },
+  });
 
   // Brand logo if available
   if (ctx.brand?.logoBase64) {
     pptxSlide.addImage({
       data: ctx.brand.logoBase64,
-      x: SLIDE_W / 2 - 1.0, y: 0.8, w: 2.0, h: 1.0,
+      x: SLIDE_W / 2 - 1.0, y: 0.6, w: 2.0, h: 1.0,
       sizing: { type: 'contain', w: 2.0, h: 1.0 },
     });
   }
@@ -1648,7 +1841,7 @@ export async function renderClosingSlide(
   const mainY = ctx.brand?.logoBase64 ? 2.0 : 1.5;
   pptxSlide.addText(slide.title, {
     x: MARGIN_X, y: mainY, w: CONTENT_W, h: 1.2,
-    fontSize: typo.titleSize,
+    fontSize: typo.titleSize + 4,
     fontFace: typo.headerFont,
     color: t.palette.textOnDark,
     bold: true,
@@ -1657,12 +1850,19 @@ export async function renderClosingSlide(
     margin: 0,
   });
 
+  // Accent line under title
+  pptxSlide.addShape(ctx.pres.shapes.RECTANGLE, {
+    x: SLIDE_W / 2 - 1.2, y: mainY + 1.25, w: 2.4, h: 0.10,
+    fill: { color: accentColor },
+    rectRadius: 0.05,
+  });
+
   if (slide.subtitle) {
     pptxSlide.addText(slide.subtitle, {
-      x: MARGIN_X, y: mainY + 1.2, w: CONTENT_W, h: 0.6,
-      fontSize: typo.subtitleSize,
+      x: MARGIN_X, y: mainY + 1.5, w: CONTENT_W, h: 0.6,
+      fontSize: typo.subtitleSize + 2,
       fontFace: typo.bodyFont,
-      color: lightenColor(t.palette.textOnDark, 30),
+      color: lightenColor(t.palette.textOnDark, 25),
       align: 'center',
       margin: 0,
     });
