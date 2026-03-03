@@ -582,15 +582,37 @@ export async function renderTwoColumnSlide(
       rectRadius: 0.06,
     });
 
+    // Icon if provided
+    const colIcon = i === 0 ? slide.leftIcon : slide.rightIcon;
+    let contentY = BODY_Y + 0.15;
+    if (colIcon) {
+      try {
+        const iconData = await iconToBase64Png({
+          ...colIcon,
+          color: colIcon.color || accentColors[i],
+        });
+        pptxSlide.addImage({
+          data: iconData,
+          x: x + layout.cardW / 2 - 0.25, y: BODY_Y + 0.2, w: 0.5, h: 0.5,
+        });
+        contentY = BODY_Y + 0.8;
+      } catch (e) {
+        logger.warn('Failed to render two-column icon', e);
+      }
+    }
+
     if (title) {
       pptxSlide.addText(title, {
-        x: x + CARD_PAD + 0.05, y: BODY_Y + 0.15, w: layout.cardW - CARD_PAD * 2, h: 0.5,
+        x: x + CARD_PAD + 0.05, y: contentY, w: layout.cardW - CARD_PAD * 2, h: 0.5,
         fontSize: typo.bodySize + 2,
         fontFace: typo.headerFont,
         color: textColor,
         bold: true,
         margin: 0,
       });
+      contentY += 0.55;
+    } else if (!colIcon) {
+      contentY = BODY_Y + 0.2;
     }
 
     pptxSlide.addText(bodyToTextArray(content, {
@@ -598,8 +620,8 @@ export async function renderTwoColumnSlide(
       fontFace: typo.bodyFont,
       color: subColor,
     }), {
-      x: x + CARD_PAD + 0.05, y: title ? BODY_Y + 0.7 : BODY_Y + 0.2,
-      w: layout.cardW - CARD_PAD * 2, h: title ? BODY_H - 0.9 : BODY_H - 0.4,
+      x: x + CARD_PAD + 0.05, y: contentY,
+      w: layout.cardW - CARD_PAD * 2, h: BODY_Y + BODY_H - contentY - 0.2,
       valign: 'top',
       margin: 0,
       lineSpacingMultiple: 1.3,
@@ -743,47 +765,104 @@ export async function renderBulletListSlide(
 
   addTitleAccent(pptxSlide, ctx.pres, t);
 
-  // Build bullet items — colored bullet markers
-  const textItems: Array<{ text: string; options: Record<string, any> }> = [];
+  // Check if any items have icons — if so, use icon-row layout
+  const hasAnyIcon = slide.items.some(item => item.icon);
 
-  for (const item of slide.items) {
-    textItems.push({
-      text: item.text,
-      options: {
-        bullet: { type: 'bullet', characterCode: '25CF' },
+  if (hasAnyIcon) {
+    // Icon-row layout: small icon + text per row
+    const itemHeight = Math.min(0.55, BODY_H / slide.items.length);
+    const iconSize = 0.32;
+    const iconX = MARGIN_X;
+    const textX = MARGIN_X + iconSize + 0.15;
+    const textW = CONTENT_W - iconSize - 0.15;
+
+    for (let i = 0; i < slide.items.length; i++) {
+      const item = slide.items[i];
+      const rowY = BODY_Y + i * itemHeight;
+
+      if (item.icon) {
+        try {
+          const iconData = await iconToBase64Png({
+            ...item.icon,
+            color: item.icon.color || t.palette.primary,
+          });
+          pptxSlide.addImage({
+            data: iconData,
+            x: iconX, y: rowY + 0.05, w: iconSize, h: iconSize,
+          });
+        } catch (e) {
+          logger.warn('Failed to render bullet icon', e);
+        }
+      }
+
+      pptxSlide.addText(item.text, {
+        x: textX, y: rowY, w: textW, h: itemHeight,
         fontSize: typo.bodySize + 1,
         fontFace: typo.bodyFont,
         color: textColor,
         bold: true,
-        breakLine: true,
-        paraSpaceAfter: 8,
-        paraSpaceBefore: 4,
-      },
-    });
+        valign: 'middle',
+        margin: 0,
+      });
 
-    if (item.subItems) {
-      for (const sub of item.subItems) {
-        textItems.push({
-          text: sub,
-          options: {
-            bullet: { type: 'bullet', characterCode: '25CB' },
-            indentLevel: 1,
+      if (item.subItems) {
+        for (let j = 0; j < item.subItems.length; j++) {
+          const subY = rowY + itemHeight + j * (itemHeight * 0.8);
+          pptxSlide.addText(item.subItems[j], {
+            x: textX + 0.3, y: subY, w: textW - 0.3, h: itemHeight * 0.8,
             fontSize: typo.bodySize,
             fontFace: typo.bodyFont,
             color: subColor,
-            breakLine: true,
-            paraSpaceAfter: 4,
-          },
-        });
+            valign: 'middle',
+            margin: 0,
+            bullet: { type: 'bullet', characterCode: '25CB' },
+          });
+        }
       }
     }
-  }
+  } else {
+    // Standard bullet layout (no icons)
+    const textItems: Array<{ text: string; options: Record<string, any> }> = [];
 
-  pptxSlide.addText(textItems, {
-    x: MARGIN_X, y: BODY_Y, w: CONTENT_W, h: BODY_H,
-    valign: 'top',
-    margin: 0,
-  });
+    for (const item of slide.items) {
+      textItems.push({
+        text: item.text,
+        options: {
+          bullet: { type: 'bullet', characterCode: '25CF' },
+          fontSize: typo.bodySize + 1,
+          fontFace: typo.bodyFont,
+          color: textColor,
+          bold: true,
+          breakLine: true,
+          paraSpaceAfter: 8,
+          paraSpaceBefore: 4,
+        },
+      });
+
+      if (item.subItems) {
+        for (const sub of item.subItems) {
+          textItems.push({
+            text: sub,
+            options: {
+              bullet: { type: 'bullet', characterCode: '25CB' },
+              indentLevel: 1,
+              fontSize: typo.bodySize,
+              fontFace: typo.bodyFont,
+              color: subColor,
+              breakLine: true,
+              paraSpaceAfter: 4,
+            },
+          });
+        }
+      }
+    }
+
+    pptxSlide.addText(textItems, {
+      x: MARGIN_X, y: BODY_Y, w: CONTENT_W, h: BODY_H,
+      valign: 'top',
+      margin: 0,
+    });
+  }
 
   addFooter(pptxSlide, ctx.pres, ctx, isDark);
   addSpeakerNotes(pptxSlide, slide.speakerNotes);
@@ -1199,17 +1278,36 @@ export async function renderStatCalloutSlide(
       rectRadius: 0.04,
     });
 
+    // Icon above number if provided
+    let numberYOffset = 0;
+    if (stat.icon) {
+      try {
+        const iconData = await iconToBase64Png({
+          ...stat.icon,
+          color: stat.icon.color || statColor,
+        });
+        const iconSize = 0.44;
+        pptxSlide.addImage({
+          data: iconData,
+          x: x + layout.cardW / 2 - iconSize / 2, y: startY + 0.3, w: iconSize, h: iconSize,
+        });
+        numberYOffset = 0.4;
+      } catch (e) {
+        logger.warn('Failed to render stat icon', e);
+      }
+    }
+
     // Subtle colored circle behind number
     const circleSize = 1.4;
     pptxSlide.addShape(ctx.pres.shapes.OVAL, {
-      x: x + layout.cardW / 2 - circleSize / 2, y: startY + 0.6,
+      x: x + layout.cardW / 2 - circleSize / 2, y: startY + 0.6 + numberYOffset,
       w: circleSize, h: circleSize,
       fill: { color: statColor, transparency: 90 },
     });
 
     // Big number — sized to fit within card
     pptxSlide.addText(stat.value, {
-      x: x + CARD_PAD, y: startY + 0.4, w: layout.cardW - CARD_PAD * 2, h: 1.8,
+      x: x + CARD_PAD, y: startY + 0.4 + numberYOffset, w: layout.cardW - CARD_PAD * 2, h: 1.8 - numberYOffset,
       fontSize: 48,
       fontFace: typo.headerFont,
       color: statColor,
@@ -1305,17 +1403,41 @@ export async function renderTimelineSlide(
       shadow: makeShadow({ blur: 6, offset: 2, opacity: 0.25 }),
     });
 
-    // Step number inside circle
-    pptxSlide.addText(String(i + 1), {
-      x: x - nodeSize / 2, y: lineY - nodeSize / 2, w: nodeSize, h: nodeSize,
-      fontSize: 16,
-      fontFace: typo.headerFont,
-      color: isDarkColor(t.palette.primary) ? 'FFFFFF' : t.palette.text,
-      bold: true,
-      align: 'center',
-      valign: 'middle',
-      margin: 0,
-    });
+    // Icon inside circle (if provided), otherwise step number
+    if (step.icon) {
+      try {
+        const iconData = await iconToBase64Png({
+          ...step.icon,
+          color: step.icon.color || (isDarkColor(t.palette.primary) ? 'FFFFFF' : t.palette.text),
+        });
+        const iconInset = 0.12;
+        pptxSlide.addImage({
+          data: iconData,
+          x: x - nodeSize / 2 + iconInset, y: lineY - nodeSize / 2 + iconInset,
+          w: nodeSize - iconInset * 2, h: nodeSize - iconInset * 2,
+        });
+      } catch (e) {
+        logger.warn('Failed to render timeline icon', e);
+        // Fallback to step number
+        pptxSlide.addText(String(i + 1), {
+          x: x - nodeSize / 2, y: lineY - nodeSize / 2, w: nodeSize, h: nodeSize,
+          fontSize: 16, fontFace: typo.headerFont,
+          color: isDarkColor(t.palette.primary) ? 'FFFFFF' : t.palette.text,
+          bold: true, align: 'center', valign: 'middle', margin: 0,
+        });
+      }
+    } else {
+      pptxSlide.addText(String(i + 1), {
+        x: x - nodeSize / 2, y: lineY - nodeSize / 2, w: nodeSize, h: nodeSize,
+        fontSize: 16,
+        fontFace: typo.headerFont,
+        color: isDarkColor(t.palette.primary) ? 'FFFFFF' : t.palette.text,
+        bold: true,
+        align: 'center',
+        valign: 'middle',
+        margin: 0,
+      });
+    }
 
     // Step title (alternating above/below)
     const isAbove = i % 2 === 0;
@@ -1740,6 +1862,27 @@ export async function renderTeamSlide(
         x: x + cellWidth / 2 - 0.4, y, w: 0.8, h: 0.8,
         rounding: true,
       });
+    } else if (member.imageUrl) {
+      try {
+        pptxSlide.addImage({
+          path: member.imageUrl,
+          x: x + cellWidth / 2 - 0.4, y, w: 0.8, h: 0.8,
+          rounding: true,
+        });
+      } catch (e) {
+        logger.warn(`Failed to load team member image URL: ${member.imageUrl}`, e);
+        // Fallback to initials
+        pptxSlide.addShape(ctx.pres.shapes.OVAL, {
+          x: x + cellWidth / 2 - 0.4, y, w: 0.8, h: 0.8,
+          fill: { color: lightenColor(t.palette.primary, 30) },
+        });
+        const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+        pptxSlide.addText(initials, {
+          x: x + cellWidth / 2 - 0.4, y, w: 0.8, h: 0.8,
+          fontSize: 18, fontFace: typo.headerFont, color: t.palette.primary,
+          bold: true, align: 'center', valign: 'middle', margin: 0,
+        });
+      }
     } else {
       pptxSlide.addShape(ctx.pres.shapes.OVAL, {
         x: x + cellWidth / 2 - 0.4, y, w: 0.8, h: 0.8,
@@ -1994,7 +2137,57 @@ export async function renderBlankSlide(
   ctx: SlideRenderContext,
 ): Promise<void> {
   const pptxSlide = ctx.pres.addSlide();
-  applyBackground(pptxSlide, slide, ctx.theme);
+  const t = ctx.theme;
+  const typo = t.typography!;
+  applyBackground(pptxSlide, slide, t);
+
+  // Render custom elements if provided
+  if (slide.elements && slide.elements.length > 0) {
+    for (const el of slide.elements) {
+      const { type, x, y, w, h, props } = el;
+      try {
+        switch (type) {
+          case 'text':
+            pptxSlide.addText(String(props.text || ''), {
+              x, y, w, h,
+              fontSize: Number(props.fontSize) || typo.bodySize,
+              fontFace: String(props.fontFace || typo.bodyFont),
+              color: String(props.color || t.palette.text),
+              bold: Boolean(props.bold),
+              italic: Boolean(props.italic),
+              align: (props.align as any) || 'left',
+              valign: (props.valign as any) || 'top',
+              margin: 0,
+            });
+            break;
+          case 'shape':
+            pptxSlide.addShape(
+              ctx.pres.shapes[String(props.shape || 'RECTANGLE').toUpperCase()] || ctx.pres.shapes.RECTANGLE,
+              {
+                x, y, w, h,
+                fill: props.fill ? { color: String(props.fill) } : undefined,
+                line: props.lineColor ? { color: String(props.lineColor), width: Number(props.lineWidth) || 1 } : undefined,
+                rectRadius: Number(props.rectRadius) || 0,
+                shadow: props.shadow ? makeShadow({ blur: 6, offset: 2, opacity: 0.15 }) : undefined,
+              },
+            );
+            break;
+          case 'image':
+            if (props.base64) {
+              pptxSlide.addImage({ data: String(props.base64), x, y, w, h });
+            } else if (props.url) {
+              pptxSlide.addImage({ path: String(props.url), x, y, w, h });
+            }
+            break;
+          default:
+            logger.warn(`Blank slide: unsupported element type "${type}"`);
+        }
+      } catch (e) {
+        logger.warn(`Failed to render blank slide element: ${type}`, e);
+      }
+    }
+  }
+
   addFooter(pptxSlide, ctx.pres, ctx, !!slide.darkBackground);
   addSpeakerNotes(pptxSlide, slide.speakerNotes);
 }

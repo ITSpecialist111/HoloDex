@@ -432,6 +432,7 @@ export const PresentationRequestSchema = z.object({
   author: z.string().optional(),
   slides: z.array(SlideSchema).min(1).max(50),
   theme: DesignThemeSchema.optional(),
+  paletteName: z.string().optional().describe('Preset palette name (use list_palettes to see options). Overrides theme.palette if both provided.'),
   brand: BrandConfigSchema.optional(),
   outputFormat: z.enum(['buffer', 'base64', 'file', 'blob-url']).default('buffer'),
   outputFileName: z.string().optional(),

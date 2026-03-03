@@ -104,8 +104,17 @@ export function createApiRouter(): express.Router {
         return;
       }
 
-      // Return based on format
-      if (result.buffer) {
+      // Return based on format — check blobUrl before buffer since blob-url returns both
+      if (result.blobUrl) {
+        res.json({
+          requestId,
+          success: true,
+          fileName: result.fileName,
+          slideCount: result.slideCount,
+          blobUrl: result.blobUrl,
+          warnings: result.warnings,
+        });
+      } else if (result.buffer) {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
         res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
         res.send(result.buffer);
@@ -117,7 +126,6 @@ export function createApiRouter(): express.Router {
           slideCount: result.slideCount,
           base64: result.base64,
           filePath: result.filePath,
-          blobUrl: result.blobUrl,
           warnings: result.warnings,
         });
       }

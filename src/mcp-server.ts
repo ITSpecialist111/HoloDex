@@ -39,6 +39,7 @@ export function createMcpServer(): McpServer {
       description: z.string().optional().describe('Brief description of the presentation purpose'),
       slides: z.array(z.any()).min(1).max(50).describe('Array of slide definitions. Each slide must have a "type" field. See list_slide_types for available types and their schemas.'),
       theme: z.object({
+        paletteName: z.string().optional().describe('Preset palette name (use list_palettes to see options). Ignored if palette is provided.'),
         palette: z.object({
           primary: z.string().describe('Primary color (6-char hex, no #)'),
           secondary: z.string().describe('Secondary color'),
@@ -72,6 +73,7 @@ export function createMcpServer(): McpServer {
           description: args.description,
           slides: args.slides as Slide[],
           theme: args.theme as any,
+          paletteName: args.theme?.paletteName,
           brand,
           outputFormat: args.returnUrl ? 'buffer' : 'base64',
         };

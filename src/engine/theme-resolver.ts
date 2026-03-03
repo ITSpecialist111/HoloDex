@@ -31,9 +31,18 @@ export const DEFAULT_THEME: DesignTheme = {
 export function resolveTheme(
   themeInput?: Partial<DesignTheme>,
   brand?: BrandConfig,
+  paletteName?: string,
 ): DesignTheme {
   // Start with defaults
   let theme: DesignTheme = { ...DEFAULT_THEME };
+
+  // If paletteName is provided, resolve it first
+  if (paletteName) {
+    const preset = PRESET_PALETTES[paletteName];
+    if (preset) {
+      theme.palette = { ...preset };
+    }
+  }
 
   // If brand is provided, it takes priority for colors and fonts
   if (brand) {

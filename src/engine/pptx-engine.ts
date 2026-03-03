@@ -14,6 +14,7 @@ import { logger } from '../utils/logger.js';
 import { clearIconCache } from '../utils/icon-renderer.js';
 import { imageManager } from '../ai/image-provider.js';
 import { generateBatchPrompts } from '../ai/prompt-generator.js';
+import { fileStore } from '../utils/file-store.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -35,7 +36,7 @@ export class PptxEngine {
       logger.info(`Generating presentation: "${validated.title}" with ${validated.slides.length} slides`);
 
       // Resolve theme (merging defaults, brand, and explicit theme)
-      const theme = resolveTheme(validated.theme, validated.brand);
+      const theme = resolveTheme(validated.theme, validated.brand, validated.paletteName);
       logger.info(`Using theme with palette primary: ${theme.palette.primary}`);
 
       // Create PptxGenJS instance
@@ -270,6 +271,14 @@ export class PptxEngine {
         const filePath = path.join(outputDir, fileName);
         await pres.writeFile({ fileName: filePath });
         return { filePath };
+      }
+      case 'blob-url': {
+        const arrayBuffer2 = await pres.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+        const buf = Buffer.from(arrayBuffer2);
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const stored = fileStore.store(buf, fileName, 0);
+        const blobUrl = fileStore.downloadUrl(stored.id, baseUrl);
+        return { buffer: buf, blobUrl };
       }
       case 'buffer':
       default: {
