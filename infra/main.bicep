@@ -15,11 +15,11 @@ param cpuCores string = '1'
 @description('Memory in Gi for the container (e.g., 1Gi, 2Gi)')
 param memory string = '2Gi'
 
-@description('Minimum number of replicas')
-param minReplicas int = 0
+@description('Minimum number of replicas — must be ≥1 to preserve in-memory file store')
+param minReplicas int = 1
 
-@description('Maximum number of replicas')
-param maxReplicas int = 3
+@description('Maximum number of replicas — keep at 1 while using in-memory file store')
+param maxReplicas int = 1
 
 @description('Log Analytics workspace name')
 param logAnalyticsName string = '${appName}-logs'
