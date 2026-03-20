@@ -35,6 +35,23 @@ export class PptxEngine {
       const validated = PresentationRequestSchema.parse(request);
       logger.info(`Generating presentation: "${validated.title}" with ${validated.slides.length} slides`);
 
+      // Debug: log each slide's data so we can trace what Copilot Studio sends
+      for (let i = 0; i < validated.slides.length; i++) {
+        const s = validated.slides[i] as any;
+        const keys = Object.keys(s).filter(k => k !== 'type').join(', ');
+        const preview: Record<string, any> = { type: s.type };
+        if (s.title) preview.title = s.title.substring(0, 60);
+        if (s.body) preview.body = s.body.substring(0, 60);
+        if (s.items) preview.itemCount = s.items.length;
+        if (s.columns) preview.columnCount = s.columns.length;
+        if (s.steps) preview.stepCount = s.steps.length;
+        if (s.stats) preview.statCount = s.stats.length;
+        if (s.quote) preview.quote = s.quote.substring(0, 60);
+        if (s.aiImage) preview.aiImage = s.aiImage.prompt?.substring(0, 60);
+        if (s.subtitle) preview.subtitle = s.subtitle.substring(0, 60);
+        logger.info(`Slide ${i + 1} data: ${JSON.stringify(preview)} [keys: ${keys}]`);
+      }
+
       // Resolve theme (merging defaults, brand, and explicit theme)
       const theme = resolveTheme(validated.theme, validated.brand, validated.paletteName);
       logger.info(`Using theme with palette primary: ${theme.palette.primary}`);
