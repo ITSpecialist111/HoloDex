@@ -580,7 +580,7 @@ The `infra/main.bicep` template creates:
 
 | Resource | Purpose |
 |----------|--------|
-| **Azure Container App** | Auto-scaling (0–3 replicas), HTTP scaling rule, health probes |
+| **Azure Container App** | Single replica with persistent in-memory file store, health probes |
 | **Azure Container Registry** | Private Docker image registry (Basic SKU) |
 | **Azure Blob Storage** | PPTX file storage with managed identity access |
 | **Application Insights** | APM, telemetry, distributed tracing |
@@ -591,6 +591,41 @@ RBAC role assignments are auto-created:
 - **AcrPull** on the container registry
 - **Storage Blob Data Contributor** on the storage account
 - **Cognitive Services OpenAI User** — must be assigned manually (see above)
+
+## Roadmap
+
+Planned features and ideas for future development:
+
+### Master PPTX Template Support
+
+**Status:** Planned
+
+Allow users to upload a corporate `.pptx` master template and have HoloDex generate slides that inherit its slide masters, layouts, backgrounds, and formatting. This would enable fully branded presentations that match an organisation's exact design system — beyond what the current brand registration (colors, fonts, logo) provides.
+
+**Approach options being evaluated:**
+
+| Approach | Description | Trade-offs |
+|----------|-------------|------------|
+| **Template merging** | Parse the uploaded PPTX's slide masters/layouts via XML manipulation, inject generated slide content into the template's structure | Full fidelity to the original template; complex XML handling required |
+| **Layout mapping** | Map HoloDex's 22 slide types to named layouts in the uploaded template, render content into the template's placeholder positions | Requires templates to follow a naming convention; moderate complexity |
+| **Hybrid generation** | Use the template for backgrounds, headers, and footers while HoloDex handles content layout and positioning | Easier to implement; may not match all template nuances |
+
+The schema already includes `masterTemplateBase64` and `masterTemplateUrl` fields on `BrandConfig` — these are reserved for this feature.
+
+**Key challenges:**
+- PptxGenJS generates PPTX from scratch and cannot natively import existing slide masters
+- Slide master XML structures vary significantly between templates
+- Placeholder positioning needs to be extracted and mapped dynamically
+
+### Additional Roadmap Ideas
+
+- **Persistent file storage** — Replace in-memory file store with Azure Blob Storage for download URLs that survive restarts and support multi-replica scaling
+- **Template gallery** — Pre-built presentation templates (pitch deck, quarterly review, project status) that users can select by name
+- **Slide reordering & editing** — MCP tools to modify existing presentations (add/remove/reorder slides)
+- **PDF export** — Direct PDF generation alongside PPTX
+- **Streaming generation** — SSE progress events during long-running presentations with many AI images
+- **Multi-language support** — Locale-aware date formatting and RTL text support
+- **Animation presets** — Entrance/exit animations and slide transitions
 
 ## License
 
