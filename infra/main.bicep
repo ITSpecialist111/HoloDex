@@ -248,6 +248,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'AZURE_OPENAI_API_VERSION', value: azureOpenAiApiVersion }
             { name: 'FLUX_ENDPOINT', value: fluxEndpoint }
             { name: 'FLUX_API_KEY', secretRef: 'flux-api-key' }
+            { name: 'PUBLIC_URL', value: 'https://${appName}.${containerAppsEnv.properties.defaultDomain}' }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString

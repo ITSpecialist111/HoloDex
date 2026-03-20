@@ -16,6 +16,12 @@ import type { PresentationRequest, Slide, BrandConfig } from './schemas.js';
 import { imageManager } from './ai/image-provider.js';
 import { logger } from './utils/logger.js';
 
+function getBaseUrl(): string {
+  return process.env.PUBLIC_URL
+    || (process.env.CONTAINER_APP_HOSTNAME ? `https://${process.env.CONTAINER_APP_HOSTNAME}` : '')
+    || `http://localhost:${process.env.PORT || 3000}`;
+}
+
 /**
  * MCP Server for HoloDex.
  * Exposes tools for AI agents to generate rich PowerPoint presentations.
@@ -89,7 +95,7 @@ export function createMcpServer(): McpServer {
 
         // When returnUrl is set, store the file and return a download link
         if (args.returnUrl && result.buffer) {
-          const baseUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+          const baseUrl = getBaseUrl();
           const stored = fileStore.store(result.buffer, result.fileName, result.slideCount, result.warnings);
           const downloadUrl = fileStore.downloadUrl(stored.id, baseUrl);
           return {
@@ -229,7 +235,7 @@ export function createMcpServer(): McpServer {
 
         // When returnUrl is set, store the file and return a download link
         if (args.returnUrl && result.buffer) {
-          const baseUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+          const baseUrl = getBaseUrl();
           const stored = fileStore.store(result.buffer, result.fileName, result.slideCount, result.warnings);
           const downloadUrl = fileStore.downloadUrl(stored.id, baseUrl);
           return {
