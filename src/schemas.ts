@@ -206,7 +206,7 @@ export const SectionSlideSchema = BaseSlideSchema.extend({
 export const ContentSlideSchema = BaseSlideSchema.extend({
   type: z.literal('content'),
   title: z.string(),
-  body: z.string(),
+  body: z.string().default(''),
   image: ImageRefSchema.optional(),
   icon: IconRefSchema.optional(),
 });
@@ -215,9 +215,9 @@ export const TwoColumnSlideSchema = BaseSlideSchema.extend({
   type: z.literal('two-column'),
   title: z.string(),
   leftTitle: z.string().optional(),
-  leftContent: z.string(),
+  leftContent: z.string().default(''),
   rightTitle: z.string().optional(),
-  rightContent: z.string(),
+  rightContent: z.string().default(''),
   leftIcon: IconRefSchema.optional(),
   rightIcon: IconRefSchema.optional(),
 });
@@ -227,9 +227,9 @@ export const ThreeColumnSlideSchema = BaseSlideSchema.extend({
   title: z.string(),
   columns: z.array(z.object({
     title: z.string().optional(),
-    content: z.string(),
+    content: z.string().default(''),
     icon: IconRefSchema.optional(),
-  })).length(3),
+  })).min(1).max(3).default([{ content: '' }, { content: '' }, { content: '' }]),
 });
 
 export const BulletListSlideSchema = BaseSlideSchema.extend({
@@ -239,7 +239,7 @@ export const BulletListSlideSchema = BaseSlideSchema.extend({
     text: z.string(),
     subItems: z.array(z.string()).optional(),
     icon: IconRefSchema.optional(),
-  })),
+  })).default([]),
 });
 
 export const ChartBarSlideSchema = BaseSlideSchema.extend({
@@ -278,10 +278,10 @@ export const ChartDoughnutSlideSchema = BaseSlideSchema.extend({
 export const ComparisonSlideSchema = BaseSlideSchema.extend({
   type: z.literal('comparison'),
   title: z.string(),
-  leftTitle: z.string(),
-  leftItems: z.array(z.string()),
-  rightTitle: z.string(),
-  rightItems: z.array(z.string()),
+  leftTitle: z.string().default(''),
+  leftItems: z.array(z.string()).default([]),
+  rightTitle: z.string().default(''),
+  rightItems: z.array(z.string()).default([]),
   leftColor: HexColorSchema.optional(),
   rightColor: HexColorSchema.optional(),
 });
@@ -303,13 +303,13 @@ export const TimelineSlideSchema = BaseSlideSchema.extend({
     title: z.string(),
     description: z.string().optional(),
     icon: IconRefSchema.optional(),
-  })).min(2).max(6),
+  })).max(6).default([]),
 });
 
 export const ImageTextSlideSchema = BaseSlideSchema.extend({
   type: z.literal('image-text'),
   title: z.string(),
-  body: z.string(),
+  body: z.string().default(''),
   /** Image reference — optional when aiImage is provided */
   image: ImageRefSchema.optional(),
   imagePosition: z.enum(['left', 'right']).default('right'),
@@ -322,7 +322,7 @@ export const IconGridSlideSchema = BaseSlideSchema.extend({
     title: z.string(),
     description: z.string().optional(),
     icon: IconRefSchema,
-  })).min(2).max(6),
+  })).max(6).default([]),
 });
 
 export const QuoteSlideSchema = BaseSlideSchema.extend({
@@ -372,7 +372,7 @@ export const AgendaSlideSchema = BaseSlideSchema.extend({
     title: z.string(),
     description: z.string().optional(),
     duration: z.string().optional(),
-  })),
+  })).default([]),
 });
 
 export const BlankSlideSchema = BaseSlideSchema.extend({
