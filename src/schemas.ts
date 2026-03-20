@@ -327,7 +327,7 @@ export const IconGridSlideSchema = BaseSlideSchema.extend({
 
 export const QuoteSlideSchema = BaseSlideSchema.extend({
   type: z.literal('quote'),
-  quote: z.string(),
+  quote: z.string().default(''),
   attribution: z.string().optional(),
   role: z.string().optional(),
 });
