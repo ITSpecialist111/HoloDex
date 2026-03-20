@@ -23,6 +23,152 @@ function getBaseUrl(): string {
 }
 
 /**
+ * Auto-enrich slides that have correct structure but empty content.
+ * Copilot Studio often sends the right types & titles but leaves
+ * body, items, columns, and aiImage empty. This fills in sensible
+ * defaults so the deck isn't blank.
+ */
+function enrichSlides(slides: any[], presentationTitle: string): any[] {
+  const allTitles = slides.map((s: any) => s.title).filter(Boolean);
+
+  return slides.map((slide: any, idx: number) => {
+    const s = { ...slide };
+
+    switch (s.type) {
+      case 'agenda': {
+        // Auto-populate agenda items from other slide titles
+        if (!s.items?.length) {
+          s.items = allTitles
+            .filter((_: string, i: number) => i !== idx && slides[i]?.type !== 'title' && slides[i]?.type !== 'closing' && slides[i]?.type !== 'agenda')
+            .map((t: string) => ({ title: t }));
+        }
+        break;
+      }
+
+      case 'content': {
+        // If body is empty, generate a descriptive paragraph from the title
+        if (!s.body?.trim()) {
+          s.body = `This section covers ${s.title?.toLowerCase() || presentationTitle.toLowerCase()}. Key concepts and important details are explored in depth to provide a comprehensive understanding of the topic.`;
+        }
+        break;
+      }
+
+      case 'bullet-list': {
+        // If items are empty, generate placeholder bullets from the title
+        if (!s.items?.length) {
+          const title = s.title || 'Key Points';
+          s.items = [
+            { text: `Overview of ${title.toLowerCase()}` },
+            { text: `Key principles and fundamentals` },
+            { text: `Practical applications and examples` },
+            { text: `Best practices and recommendations` },
+          ];
+        }
+        break;
+      }
+
+      case 'two-column': {
+        if (!s.leftContent?.trim()) {
+          s.leftTitle = s.leftTitle || 'Key Points';
+          s.leftContent = `Important aspects and details about ${s.title?.toLowerCase() || 'this topic'}.`;
+        }
+        if (!s.rightContent?.trim()) {
+          s.rightTitle = s.rightTitle || 'Details';
+          s.rightContent = `Additional context and supporting information for a complete understanding.`;
+        }
+        break;
+      }
+
+      case 'three-column': {
+        if (!s.columns?.length || s.columns.every((c: any) => !c?.content?.trim())) {
+          s.columns = [
+            { title: 'Overview', content: `Introduction to ${s.title?.toLowerCase() || 'the topic'} and its core principles.` },
+            { title: 'Details', content: `Key details, methods, and approaches that define the subject.` },
+            { title: 'Application', content: `Real-world applications, examples, and practical use cases.` },
+          ];
+        }
+        break;
+      }
+
+      case 'image-text': {
+        if (!s.body?.trim()) {
+          s.body = `${s.title || presentationTitle} represents a key aspect of this presentation. This visual explores the concept through imagery and descriptive context.`;
+        }
+        // Auto-add aiImage if not present
+        if (!s.aiImage && !s.image) {
+          s.aiImage = { prompt: `Professional photograph related to ${s.title || presentationTitle}, clean modern style, high quality` };
+        }
+        break;
+      }
+
+      case 'full-image': {
+        // Auto-add aiImage if not present
+        if (!s.aiImage && !s.image) {
+          s.aiImage = { prompt: `Stunning wide-angle photograph of ${s.title || presentationTitle}, professional quality, dramatic lighting` };
+        }
+        break;
+      }
+
+      case 'quote': {
+        if (!s.quote?.trim()) {
+          s.quote = `The beauty of ${presentationTitle.toLowerCase()} lies in its ability to inspire and transform.`;
+          s.attribution = s.attribution || 'Unknown';
+        }
+        break;
+      }
+
+      case 'stat-callout': {
+        if (!s.stats?.length) {
+          s.stats = [
+            { value: '100%', label: 'Engagement' },
+            { value: '50+', label: 'Key Concepts' },
+            { value: '∞', label: 'Possibilities' },
+          ];
+        }
+        break;
+      }
+
+      case 'timeline': {
+        if (!s.steps?.length) {
+          s.steps = [
+            { title: 'Beginning', description: 'The origins and early development' },
+            { title: 'Growth', description: 'Expansion and increasing influence' },
+            { title: 'Today', description: 'Current state and modern applications' },
+          ];
+        }
+        break;
+      }
+
+      case 'comparison': {
+        if (!s.leftItems?.length) {
+          s.leftTitle = s.leftTitle || 'Advantages';
+          s.leftItems = ['Clear benefits', 'Practical value', 'Wide applicability'];
+        }
+        if (!s.rightItems?.length) {
+          s.rightTitle = s.rightTitle || 'Considerations';
+          s.rightItems = ['Requirements', 'Learning curve', 'Resource needs'];
+        }
+        break;
+      }
+
+      case 'icon-grid': {
+        if (!s.items?.length) {
+          s.items = [
+            { title: 'Concept', description: 'Core ideas and principles', icon: { name: 'lightbulb' } },
+            { title: 'Method', description: 'Approaches and techniques', icon: { name: 'gear' } },
+            { title: 'Result', description: 'Outcomes and impact', icon: { name: 'chart-line' } },
+            { title: 'Future', description: 'Next steps and possibilities', icon: { name: 'rocket' } },
+          ];
+        }
+        break;
+      }
+    }
+
+    return s;
+  });
+}
+
+/**
  * MCP Server for HoloDex.
  * Exposes tools for AI agents to generate rich PowerPoint presentations.
  */
@@ -38,12 +184,31 @@ export function createMcpServer(): McpServer {
   // ================================================================
   server.tool(
     'create_presentation',
-    'Generate a complete PowerPoint presentation with rich formatting, charts, icons, and professional design. Supports 1-50 slides with 20+ slide types.',
+    `Generate a complete PowerPoint presentation. IMPORTANT: Every slide MUST include full content, not just titles.
+
+For each slide, include ALL required content fields:
+- content slides: body with 2-3 sentences
+- bullet-list: items array with 3-6 objects like {text: "point text"}
+- two-column: leftContent and rightContent with text paragraphs, leftTitle and rightTitle
+- three-column: columns array with 3 objects like {title: "Col", content: "text"}
+- image-text: body with text AND aiImage: {prompt: "description for image"}
+- full-image: aiImage: {prompt: "description for image"}
+- agenda: items array with {title: "Topic"} for each section
+- quote: quote text and attribution
+- stat-callout: stats array with {value: "42%", label: "Growth"}
+
+Add aiImage: {prompt: "..."} to image-text and full-image slides for AI-generated visuals.`,
     {
       title: z.string().describe('Presentation title'),
       author: z.string().optional().describe('Author name'),
       description: z.string().optional().describe('Brief description of the presentation purpose'),
-      slides: z.array(z.any()).min(1).max(50).describe('Array of slide definitions. Each slide must have a "type" field. See list_slide_types for available types and their schemas.'),
+      slides: z.array(z.any()).min(1).max(50).describe(
+        'Array of slide objects. Each needs "type" plus FULL CONTENT. Example: ' +
+        '[{"type":"title","title":"My Talk","subtitle":"A Deep Dive"},' +
+        '{"type":"content","title":"Overview","body":"This presentation covers key concepts in detail..."},' +
+        '{"type":"bullet-list","title":"Key Points","items":[{"text":"First important point"},{"text":"Second point"},{"text":"Third point"}]},' +
+        '{"type":"image-text","title":"Visual","body":"Description of the concept.","aiImage":{"prompt":"professional photo of topic"}}]'
+      ),
       theme: z.object({
         paletteName: z.string().optional().describe('Preset palette name (use list_palettes to see options). Ignored if palette is provided.'),
         palette: z.object({
@@ -77,7 +242,7 @@ export function createMcpServer(): McpServer {
           title: args.title,
           author: args.author,
           description: args.description,
-          slides: args.slides as Slide[],
+          slides: enrichSlides(args.slides, args.title) as Slide[],
           theme: args.theme as any,
           paletteName: args.theme?.paletteName,
           brand,
@@ -287,39 +452,46 @@ export function createMcpServer(): McpServer {
           description: 'Bold title slide with subtitle, ideal for opening',
           required: ['title'],
           optional: ['subtitle', 'author', 'date', 'speakerNotes'],
+          example: { type: 'title', title: 'My Presentation', subtitle: 'A comprehensive overview' },
         },
         section: {
           description: 'Section divider / chapter break',
           required: ['title'],
           optional: ['subtitle', 'sectionNumber', 'speakerNotes'],
+          example: { type: 'section', title: 'Chapter 1: Introduction' },
         },
         content: {
-          description: 'General content with text and optional image',
+          description: 'General content with text body (MUST include body text)',
           required: ['title', 'body'],
           optional: ['image', 'icon', 'speakerNotes'],
+          example: { type: 'content', title: 'What is AI?', body: 'Artificial intelligence is the simulation of human intelligence by computer systems. It encompasses machine learning, natural language processing, and computer vision, enabling machines to learn from experience and perform human-like tasks.' },
         },
         'two-column': {
-          description: 'Side-by-side content in two columns with accent borders',
+          description: 'Side-by-side content (MUST include leftContent and rightContent text)',
           required: ['title', 'leftContent', 'rightContent'],
           optional: ['leftTitle', 'rightTitle', 'leftIcon', 'rightIcon', 'speakerNotes'],
+          example: { type: 'two-column', title: 'Pros and Cons', leftTitle: 'Advantages', leftContent: 'Increased efficiency, reduced costs, and improved accuracy in data processing.', rightTitle: 'Challenges', rightContent: 'Implementation complexity, data quality requirements, and ongoing maintenance needs.' },
         },
         'three-column': {
-          description: 'Triple column layout with cards',
+          description: 'Triple column layout (MUST include columns array with content)',
           required: ['title', 'columns'],
           optional: ['speakerNotes'],
           columns_schema: '{ title?: string, content: string, icon?: IconRef }',
+          example: { type: 'three-column', title: 'Our Process', columns: [{ title: 'Plan', content: 'Define goals and strategy' }, { title: 'Execute', content: 'Implement the solution' }, { title: 'Review', content: 'Measure and optimize' }] },
         },
         'bullet-list': {
-          description: 'Key points with proper bullets',
+          description: 'Key points with bullets (MUST include items array)',
           required: ['title', 'items'],
           optional: ['speakerNotes'],
           items_schema: '{ text: string, subItems?: string[], icon?: IconRef }',
+          example: { type: 'bullet-list', title: 'Key Benefits', items: [{ text: 'Saves time and resources' }, { text: 'Improves accuracy and consistency' }, { text: 'Scales to handle growth' }, { text: 'Easy to integrate with existing systems' }] },
         },
         'chart-bar': {
           description: 'Bar/column chart with optional commentary',
           required: ['title', 'series'],
           optional: ['commentary', 'horizontal', 'stacked', 'speakerNotes'],
           series_schema: '{ name: string, labels: string[], values: number[] }',
+          example: { type: 'chart-bar', title: 'Revenue by Quarter', series: [{ name: 'Revenue', labels: ['Q1', 'Q2', 'Q3', 'Q4'], values: [120, 150, 180, 210] }] },
         },
         'chart-line': {
           description: 'Line/trend chart with smooth curves',
@@ -340,35 +512,41 @@ export function createMcpServer(): McpServer {
           description: 'Before/after or pros/cons comparison',
           required: ['title', 'leftTitle', 'leftItems', 'rightTitle', 'rightItems'],
           optional: ['leftColor', 'rightColor', 'speakerNotes'],
+          example: { type: 'comparison', title: 'Before vs After', leftTitle: 'Before', leftItems: ['Manual processes', 'Slow turnaround', 'High error rate'], rightTitle: 'After', rightItems: ['Automated workflows', 'Instant results', 'Near-zero errors'] },
         },
         'stat-callout': {
-          description: 'Big number emphasis with stat cards',
+          description: 'Big number emphasis with stat cards (MUST include stats array)',
           required: ['stats'],
           optional: ['title', 'speakerNotes'],
           stats_schema: '{ value: string, label: string, icon?: IconRef }',
+          example: { type: 'stat-callout', title: 'By the Numbers', stats: [{ value: '98%', label: 'Customer Satisfaction' }, { value: '2.5x', label: 'Productivity Gain' }, { value: '50K+', label: 'Users Worldwide' }] },
         },
         timeline: {
-          description: 'Process flow with connected steps',
+          description: 'Process flow with connected steps (MUST include steps array)',
           required: ['title', 'steps'],
           optional: ['speakerNotes'],
           steps_schema: '{ title: string, description?: string, icon?: IconRef }',
+          example: { type: 'timeline', title: 'Project Roadmap', steps: [{ title: 'Research', description: 'Gather requirements' }, { title: 'Design', description: 'Create prototypes' }, { title: 'Build', description: 'Develop solution' }, { title: 'Launch', description: 'Deploy to production' }] },
         },
         'image-text': {
-          description: 'Half-bleed image with text on the other side',
-          required: ['title', 'body', 'image'],
-          optional: ['imagePosition', 'speakerNotes'],
-          image_schema: '{ url?: string, base64?: string, altText?: string }',
+          description: 'Half-bleed image with text. MUST include body text AND aiImage with a prompt for AI image generation.',
+          required: ['title', 'body'],
+          optional: ['imagePosition', 'speakerNotes', 'aiImage'],
+          aiImage_schema: '{ prompt: string }',
+          example: { type: 'image-text', title: 'Our Vision', body: 'We envision a world where technology empowers everyone to achieve more. Our mission drives innovation that makes a real difference.', aiImage: { prompt: 'Futuristic city skyline at sunset, clean modern architecture, inspirational' } },
         },
         'icon-grid': {
-          description: '2x2 or 2x3 grid with icons in colored circles',
+          description: '2x2 or 2x3 grid with icons and descriptions',
           required: ['title', 'items'],
           optional: ['speakerNotes'],
           items_schema: '{ title: string, description?: string, icon: IconRef }',
+          example: { type: 'icon-grid', title: 'Key Features', items: [{ title: 'Speed', description: 'Lightning fast processing', icon: { name: 'bolt' } }, { title: 'Security', description: 'Enterprise-grade protection', icon: { name: 'shield' } }, { title: 'Scale', description: 'Grows with your needs', icon: { name: 'chart-line' } }, { title: 'Support', description: '24/7 expert assistance', icon: { name: 'headset' } }] },
         },
         quote: {
-          description: 'Quote/testimonial with attribution on dark background',
+          description: 'Quote/testimonial with attribution (MUST include quote text)',
           required: ['quote'],
           optional: ['attribution', 'role', 'speakerNotes'],
+          example: { type: 'quote', quote: 'Innovation distinguishes between a leader and a follower.', attribution: 'Steve Jobs', role: 'Co-founder, Apple' },
         },
         table: {
           description: 'Data table with alternating row colors',
@@ -376,28 +554,30 @@ export function createMcpServer(): McpServer {
           optional: ['columnWidths', 'speakerNotes'],
         },
         team: {
-          description: 'Team member profiles with avatars',
+          description: 'Team member profiles',
           required: ['title', 'members'],
           optional: ['speakerNotes'],
-          members_schema: '{ name: string, role: string, description?: string, imageBase64?: string }',
+          members_schema: '{ name: string, role: string, description?: string }',
         },
         closing: {
           description: 'Thank you / contact slide',
           required: [],
           optional: ['title', 'subtitle', 'contactInfo', 'speakerNotes'],
+          example: { type: 'closing', title: 'Thank You', subtitle: 'Questions? Reach out anytime.' },
         },
         agenda: {
-          description: 'Table of contents with numbered items',
+          description: 'Table of contents (MUST include items array with topic titles)',
           required: ['items'],
           optional: ['title', 'speakerNotes'],
           items_schema: '{ title: string, description?: string, duration?: string }',
+          example: { type: 'agenda', title: 'Agenda', items: [{ title: 'Introduction' }, { title: 'Key Concepts' }, { title: 'Demo' }, { title: 'Q&A' }] },
         },
         'full-image': {
-          description: 'Full-bleed hero image slide with optional text overlay. Supports AI-generated images via aiImage field.',
+          description: 'Full-bleed hero image. MUST include aiImage with a prompt for AI image generation.',
           required: [],
           optional: ['title', 'subtitle', 'image', 'aiImage', 'overlayPosition', 'scrim', 'speakerNotes'],
-          aiImage_schema: '{ prompt?: string, size?: string, style?: "natural"|"vivid", quality?: string, placement?: string, styleNotes?: string }',
-          note: 'Set aiImage.prompt to generate an AI image. Requires OPENAI_API_KEY, AZURE_OPENAI_API_KEY, or Azure Entra ID auth.',
+          aiImage_schema: '{ prompt: string }',
+          example: { type: 'full-image', title: 'Explore the Possibilities', subtitle: 'Where innovation meets imagination', aiImage: { prompt: 'Breathtaking mountain landscape at golden hour, dramatic clouds, ultra wide angle' } },
         },
       };
 
