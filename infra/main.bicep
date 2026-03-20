@@ -45,6 +45,13 @@ param azureOpenAiDeployment string = 'dall-e-3'
 @description('Azure OpenAI API version')
 param azureOpenAiApiVersion string = '2024-02-01'
 
+@description('Flux AI image endpoint URL')
+param fluxEndpoint string = ''
+
+@secure()
+@description('Flux AI image API key')
+param fluxApiKey string = ''
+
 // ===================================
 // Log Analytics Workspace
 // ===================================
@@ -211,6 +218,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           identity: managedIdentity.id
         }
       ]
+      secrets: [
+        {
+          name: 'flux-api-key'
+          value: fluxApiKey
+        }
+      ]
     }
     template: {
       containers: [
@@ -229,10 +242,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'AZURE_STORAGE_ACCOUNT', value: storageAccount.name }
             { name: 'AZURE_STORAGE_CONTAINER', value: 'pptx-output' }
             { name: 'AZURE_CLIENT_ID', value: managedIdentity.properties.clientId }
-            { name: 'AI_IMAGE_PROVIDER', value: azureOpenAiEndpoint != '' ? 'azure-openai' : '' }
+            { name: 'AI_IMAGE_PROVIDER', value: fluxEndpoint != '' ? 'flux' : azureOpenAiEndpoint != '' ? 'azure-openai' : '' }
             { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
             { name: 'AZURE_OPENAI_DEPLOYMENT', value: azureOpenAiDeployment }
             { name: 'AZURE_OPENAI_API_VERSION', value: azureOpenAiApiVersion }
+            { name: 'FLUX_ENDPOINT', value: fluxEndpoint }
+            { name: 'FLUX_API_KEY', secretRef: 'flux-api-key' }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString

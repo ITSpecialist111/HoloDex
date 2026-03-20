@@ -131,12 +131,13 @@ Decorative accent shapes applied to slides for visual polish:
 
 ### 6. AI Image Provider (`src/ai/image-provider.ts`)
 
-Handles AI image generation with two provider backends:
+Handles AI image generation with three provider backends:
 
 | Provider | Auth | Model |
 |----------|------|-------|
-| **OpenAI** | API key (`OPENAI_API_KEY`) | DALL-E 3, GPT-image-1 |
+| **Flux** (default) | API key (`FLUX_API_KEY`) | FLUX.2-pro via Azure AI |
 | **Azure OpenAI** | API key or Entra ID (`DefaultAzureCredential`) | DALL-E 3 |
+| **OpenAI** | API key (`OPENAI_API_KEY`) | DALL-E 3, GPT-image-1 |
 
 Key features:
 - **Sequential batch generation** — generates images one at a time to avoid rate limits

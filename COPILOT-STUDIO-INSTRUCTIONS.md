@@ -51,7 +51,7 @@ The agent discovers these automatically via the MCP protocol:
 
 **Optional**: `paletteName` (e.g. `"midnight-executive"`, `"coral-energy"`) and `brandName` for registered brands.
 
-**AI images**: Add `aiImage: { prompt: "..." }` to any slide that supports images. Works automatically when deployed to Azure (DALL-E 3 via Entra ID). No configuration needed.
+**AI images**: Add `aiImage: { prompt: "..." }` to any slide that supports images. The server uses Flux (FLUX.2-pro) by default when deployed to Azure. No configuration needed.
 
 ## Agent365 / ToolingManifest.json
 
@@ -69,6 +69,6 @@ The agent discovers these automatically via the MCP protocol:
 ## Notes
 
 - Download URLs expire after **1 hour**
-- AI images are generated server-side — no client-side API keys needed when deployed to Azure
+- AI images are generated server-side using Flux (FLUX.2-pro) — no client-side API keys needed
 - Maximum **50 slides** per presentation
 - Brand registration is persistent across requests

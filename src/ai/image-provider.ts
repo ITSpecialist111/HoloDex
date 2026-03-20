@@ -368,6 +368,145 @@ export class AzureOpenAIImageProvider implements IImageProvider {
 }
 
 // ============================================================
+// Azure Flux Provider (FLUX.2-pro via Azure AI)
+// ============================================================
+
+export class FluxImageProvider implements IImageProvider {
+  readonly name: string;
+  private endpoint: string;
+  private apiKey: string;
+  private model: string;
+  private timeoutMs: number;
+
+  constructor(config: Partial<ImageProviderConfig> = {}) {
+    this.endpoint = config.baseUrl || process.env.FLUX_ENDPOINT || '';
+    this.apiKey = config.apiKey || process.env.FLUX_API_KEY || '';
+    this.model = config.model || process.env.FLUX_MODEL || 'FLUX.2-pro';
+    this.timeoutMs = config.timeoutMs || 120000;
+    this.name = `flux/${this.model}`;
+  }
+
+  get isConfigured(): boolean {
+    return !!(this.endpoint && this.apiKey);
+  }
+
+  async generate(request: ImageGenerationRequest): Promise<GeneratedImage> {
+    if (!this.isConfigured) {
+      throw new Error('Flux not configured. Set FLUX_ENDPOINT and FLUX_API_KEY environment variables.');
+    }
+
+    const start = Date.now();
+    const size = request.size || '1792x1024';
+    const [w, h] = size.split('x').map(Number);
+    const url = this.endpoint.replace(/\/$/, '');
+
+    const body = {
+      model: this.model,
+      prompt: request.prompt,
+      width: w,
+      height: h,
+      n: 1,
+    };
+
+    logger.info(`[${this.name}] Generating image: "${request.prompt.substring(0, 80)}..." (${w}x${h})`);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': this.apiKey,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      if (response.status === 429) {
+        const retryAfterHeader = response.headers.get('retry-after');
+        const retryAfterMatch = errorBody.match(/retry after (\d+) seconds/i);
+        const retryAfter = retryAfterHeader
+          ? parseInt(retryAfterHeader, 10)
+          : retryAfterMatch ? parseInt(retryAfterMatch[1], 10) : 40;
+        const err = new Error(`Flux API error 429: ${errorBody}`) as any;
+        err.retryAfterSeconds = retryAfter;
+        err.isRateLimited = true;
+        throw err;
+      }
+      throw new Error(`Flux API error ${response.status}: ${errorBody}`);
+    }
+
+    const data = await response.json() as any;
+
+    // Flux response: { data: [{ b64_json: "...", revised_prompt?: "..." }] }
+    // or may return { images: [{ b64_json: "..." }] } depending on API version
+    const imageData = data.data?.[0] || data.images?.[0];
+    const base64 = imageData?.b64_json || imageData?.base64;
+
+    if (!base64) {
+      // If the response contains a URL instead, fetch and convert
+      const imageUrl = imageData?.url;
+      if (imageUrl) {
+        const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
+        if (!imgResp.ok) throw new Error(`Failed to download Flux image from URL: ${imgResp.status}`);
+        const buffer = Buffer.from(await imgResp.arrayBuffer());
+        const elapsed = Date.now() - start;
+        logger.info(`[${this.name}] Image generated in ${elapsed}ms (via URL download)`);
+        return {
+          base64: `data:image/png;base64,${buffer.toString('base64')}`,
+          revisedPrompt: imageData?.revised_prompt,
+          width: w,
+          height: h,
+          provider: this.name,
+          generationTimeMs: elapsed,
+        };
+      }
+      throw new Error('No image data in Flux response');
+    }
+
+    const elapsed = Date.now() - start;
+    logger.info(`[${this.name}] Image generated in ${elapsed}ms`);
+
+    return {
+      base64: base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`,
+      revisedPrompt: imageData?.revised_prompt,
+      width: w,
+      height: h,
+      provider: this.name,
+      generationTimeMs: elapsed,
+    };
+  }
+
+  async generateBatch(requests: ImageGenerationRequest[]): Promise<GeneratedImage[]> {
+    // Sequential generation with rate-limit retry, same pattern as Azure OpenAI
+    const results: GeneratedImage[] = [];
+
+    for (const req of requests) {
+      try {
+        const result = await this.generate(req);
+        results.push(result);
+      } catch (err: any) {
+        if (err.isRateLimited) {
+          const waitSec = (err.retryAfterSeconds || 40) + 2;
+          logger.info(`[${this.name}] Rate limited — waiting ${waitSec}s before retrying...`);
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+          try {
+            const retryResult = await this.generate(req);
+            results.push(retryResult);
+          } catch (retryErr) {
+            logger.error(`[${this.name}] Retry failed: ${retryErr}`);
+          }
+        } else {
+          logger.error(`[${this.name}] Image generation failed: ${err}`);
+        }
+      }
+    }
+
+    return results;
+  }
+}
+
+// ============================================================
 // Image Generation Manager
 // ============================================================
 
@@ -392,14 +531,19 @@ export class ImageGenerationManager {
       this.providers.set('azure-openai', azure);
     }
 
+    const flux = new FluxImageProvider();
+    if (flux.isConfigured) {
+      this.providers.set('flux', flux);
+    }
+
     // Set default provider — prefer explicit choice, then first available
-    const preferredProvider = process.env.AI_IMAGE_PROVIDER || (azure.isConfigured ? 'azure-openai' : 'openai');
+    const preferredProvider = process.env.AI_IMAGE_PROVIDER || (flux.isConfigured ? 'flux' : azure.isConfigured ? 'azure-openai' : 'openai');
     this.provider = this.providers.get(preferredProvider) || this.providers.values().next().value || null;
 
     if (this.provider) {
       logger.info(`AI image provider configured: ${this.provider.name}`);
     } else {
-      logger.info('No AI image provider configured. Set OPENAI_API_KEY or AZURE_OPENAI_API_KEY to enable image generation.');
+      logger.info('No AI image provider configured. Set FLUX_API_KEY, OPENAI_API_KEY, or AZURE_OPENAI_API_KEY to enable image generation.');
     }
   }
 

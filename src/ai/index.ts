@@ -4,6 +4,7 @@ export {
   getImageManager,
   OpenAIImageProvider,
   AzureOpenAIImageProvider,
+  FluxImageProvider,
 } from './image-provider.js';
 export type {
   ImageSize,
