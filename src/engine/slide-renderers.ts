@@ -662,7 +662,9 @@ export async function renderThreeColumnSlide(
   const colColors = [t.palette.primary, t.palette.secondary, t.palette.accent];
   const cardFill = isDark ? lightenColor(t.palette.backgroundDark, 10) : 'FFFFFF';
 
-  for (let i = 0; i < 3; i++) {
+  if (!slide.columns || slide.columns.length === 0) return;
+
+  for (let i = 0; i < Math.min(3, slide.columns.length); i++) {
     const col = slide.columns[i];
     const x = layout.positions[i];
     const cardColor = colColors[i] !== 'FFFFFF' ? colColors[i] : t.palette.primary;
@@ -769,6 +771,7 @@ export async function renderBulletListSlide(
   addTitleAccent(pptxSlide, ctx.pres, t);
 
   // Check if any items have icons — if so, use icon-row layout
+  if (!slide.items || slide.items.length === 0) return;
   const hasAnyIcon = slide.items.some(item => item.icon);
 
   if (hasAnyIcon) {
@@ -902,6 +905,8 @@ export async function renderChartBarSlide(
   const axisColor = chartAxisColor(slide, t);
   const gridColor = chartGridColor(slide, t);
 
+  if (!slide.series || slide.series.length === 0) return;
+
   pptxSlide.addChart(ctx.pres.charts.BAR, slide.series, {
     x: MARGIN_X - 0.1, y: BODY_Y, w: chartW, h: BODY_H,
     barDir: slide.horizontal ? 'bar' : 'col',
@@ -966,6 +971,8 @@ export async function renderChartLineSlide(
   const axisColor = chartAxisColor(slide, t);
   const gridColor = chartGridColor(slide, t);
 
+  if (!slide.series || slide.series.length === 0) return;
+
   pptxSlide.addChart(ctx.pres.charts.LINE, slide.series, {
     x: MARGIN_X - 0.1, y: BODY_Y, w: chartW, h: BODY_H,
     lineSize: 3,
@@ -1024,6 +1031,8 @@ export async function renderChartPieSlide(
 
   const chartColors = getChartColors(t.palette);
 
+  if (!slide.series || slide.series.length === 0) return;
+
   pptxSlide.addChart(ctx.pres.charts.PIE, slide.series, {
     x: slide.commentary ? 1.0 : 2.0, y: BODY_Y, w: 4.5, h: BODY_H,
     showPercent: slide.showPercent,
@@ -1077,6 +1086,8 @@ export async function renderChartDoughnutSlide(
   });
 
   const chartColors = getChartColors(t.palette);
+
+  if (!slide.series || slide.series.length === 0) return;
 
   pptxSlide.addChart(ctx.pres.charts.DOUGHNUT, slide.series, {
     x: slide.commentary ? 1.0 : 2.0, y: BODY_Y, w: 4.5, h: BODY_H,
@@ -1259,6 +1270,7 @@ export async function renderStatCalloutSlide(
   }
 
   const statCount = slide.stats.length;
+  if (statCount === 0) return;
   const layout = columnLayout(statCount);
   const startY = slide.title ? BODY_Y : 1.0;
   const cardHeight = slide.title ? BODY_H : BODY_H + 0.3;
@@ -1373,6 +1385,7 @@ export async function renderTimelineSlide(
   });
 
   const stepCount = slide.steps.length;
+  if (stepCount === 0) return;
   const lineY = 2.8;
   const startX = 1.0;
   const endX = 9.0;
@@ -1590,6 +1603,7 @@ export async function renderIconGridSlide(
   });
 
   const itemCount = slide.items.length;
+  if (itemCount === 0) return;
   const cols = itemCount <= 4 ? 2 : 3;
   const rows = Math.ceil(itemCount / cols);
   const cellWidth = CONTENT_W / cols;
@@ -1768,6 +1782,7 @@ export async function renderTableSlide(
   });
 
   // Build table data
+  if (!slide.headers || slide.headers.length === 0) return;
   const headerRow = slide.headers.map(h => ({
     text: h,
     options: {

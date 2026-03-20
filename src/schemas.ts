@@ -245,7 +245,7 @@ export const BulletListSlideSchema = BaseSlideSchema.extend({
 export const ChartBarSlideSchema = BaseSlideSchema.extend({
   type: z.literal('chart-bar'),
   title: z.string(),
-  series: z.array(ChartSeriesSchema),
+  series: z.array(ChartSeriesSchema).default([]),
   commentary: z.string().optional(),
   horizontal: z.boolean().optional(),
   stacked: z.boolean().optional(),
@@ -254,7 +254,7 @@ export const ChartBarSlideSchema = BaseSlideSchema.extend({
 export const ChartLineSlideSchema = BaseSlideSchema.extend({
   type: z.literal('chart-line'),
   title: z.string(),
-  series: z.array(ChartSeriesSchema),
+  series: z.array(ChartSeriesSchema).default([]),
   commentary: z.string().optional(),
   smooth: z.boolean().optional(),
 });
@@ -262,7 +262,7 @@ export const ChartLineSlideSchema = BaseSlideSchema.extend({
 export const ChartPieSlideSchema = BaseSlideSchema.extend({
   type: z.literal('chart-pie'),
   title: z.string(),
-  series: z.array(ChartSeriesSchema).length(1),
+  series: z.array(ChartSeriesSchema).default([]),
   commentary: z.string().optional(),
   showPercent: z.boolean().default(true),
 });
@@ -270,7 +270,7 @@ export const ChartPieSlideSchema = BaseSlideSchema.extend({
 export const ChartDoughnutSlideSchema = BaseSlideSchema.extend({
   type: z.literal('chart-doughnut'),
   title: z.string(),
-  series: z.array(ChartSeriesSchema).length(1),
+  series: z.array(ChartSeriesSchema).default([]),
   commentary: z.string().optional(),
   showPercent: z.boolean().default(true),
 });
@@ -293,7 +293,7 @@ export const StatCalloutSlideSchema = BaseSlideSchema.extend({
     value: z.string(),
     label: z.string(),
     icon: IconRefSchema.optional(),
-  })).min(1).max(4),
+  })).max(4).default([]),
 });
 
 export const TimelineSlideSchema = BaseSlideSchema.extend({
@@ -335,8 +335,8 @@ export const QuoteSlideSchema = BaseSlideSchema.extend({
 export const TableSlideSchema = BaseSlideSchema.extend({
   type: z.literal('table'),
   title: z.string(),
-  headers: z.array(z.string()),
-  rows: z.array(TableRowSchema),
+  headers: z.array(z.string()).default([]),
+  rows: z.array(TableRowSchema).default([]),
   columnWidths: z.array(z.number()).optional(),
 });
 
@@ -351,7 +351,7 @@ export const TeamMemberSchema = z.object({
 export const TeamSlideSchema = BaseSlideSchema.extend({
   type: z.literal('team'),
   title: z.string(),
-  members: z.array(TeamMemberSchema).min(1).max(6),
+  members: z.array(TeamMemberSchema).max(6).default([]),
 });
 
 export const ClosingSlideSchema = BaseSlideSchema.extend({
